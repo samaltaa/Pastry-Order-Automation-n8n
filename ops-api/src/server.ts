@@ -2,6 +2,7 @@ import "dotenv/config";
 import Fastify from "fastify";
 import { Pool } from "pg";
 import { z } from "zod";
+import { advance, ConversationContext, emptyState, isExpired } from "./conversation.js";
 import { extractOrder } from "./llm/extract.js";
 import { localDate, MenuItem } from "./rules.js";
 
@@ -31,11 +32,13 @@ const orderSchema = z.object({
   items: z.array(itemSchema).min(1),
   notes: z.string().nullish(),
   idempotency_key: z.string().min(1),
+  chat_id: z.string().optional(),
 });
 
 const extractSchema = z.object({
   message: z.string().min(1).max(2000),
   ref: z.string().optional(),
+  chat_id: z.string().optional(),
 });
 
 const claimSchema = z.object({
@@ -109,38 +112,83 @@ app.post("/updates/claim", async (request) => {
 });
 
 app.post("/llm/extract-order", async (request, reply) => {
-  const { message, ref } = extractSchema.parse(request.body);
+  const { message, ref, chat_id } = extractSchema.parse(request.body);
   const menu = await loadMenu();
-  const extraction = await extractOrder(message, menu);
+  const now = new Date();
 
-  for (const call of extraction.calls) {
-    await pool.query(
-      `
-        INSERT INTO llm_calls (route, ref, model, input_tokens, output_tokens, cost_usd, latency_ms, outcome, error)
-        VALUES ('extract-order', $1, $2, $3, $4, $5, $6, $7, $8)
-      `,
-      [ref ?? null, call.model, call.inputTokens, call.outputTokens, call.costUsd, call.latencyMs, call.outcome, call.error ?? null]
-    );
+  const db = await pool.connect();
+  try {
+    await db.query("BEGIN");
+
+    let context: ConversationContext | null = null;
+    if (chat_id) {
+      await db.query(
+        "INSERT INTO conversations (chat_id, state) VALUES ($1, $2) ON CONFLICT (chat_id) DO NOTHING",
+        [chat_id, emptyState()]
+      );
+      const conversation = await db.query(
+        "SELECT state, updated_at FROM conversations WHERE chat_id = $1 FOR UPDATE",
+        [chat_id]
+      );
+      const customer = await db.query("SELECT last_address FROM customers WHERE phone = $1", [`tg:${chat_id}`]);
+      const row = conversation.rows[0];
+      const state = isExpired(new Date(row.updated_at), now) ? emptyState() : { ...emptyState(), ...row.state };
+      context = { ...state, savedAddress: customer.rows[0]?.last_address ?? null };
+    }
+
+    const extraction = await extractOrder(message, menu, now, undefined, context);
+
+    for (const call of extraction.calls) {
+      await db.query(
+        `
+          INSERT INTO llm_calls (route, ref, model, input_tokens, output_tokens, cost_usd, latency_ms, outcome, error)
+          VALUES ('extract-order', $1, $2, $3, $4, $5, $6, $7, $8)
+        `,
+        [ref ?? null, call.model, call.inputTokens, call.outputTokens, call.costUsd, call.latencyMs, call.outcome, call.error ?? null]
+      );
+    }
+
+    if (chat_id && context && extraction.draft) {
+      const next = advance(context, message, extraction);
+      await db.query(
+        "UPDATE conversations SET state = $2, last_message = $3, updated_at = NOW() WHERE chat_id = $1",
+        [chat_id, next, message]
+      );
+    }
+
+    await db.query("COMMIT");
+
+    if (!extraction.draft) {
+      reply.code(502);
+      return { ok: false, message: "Extraction failed." };
+    }
+
+    return {
+      ok: true,
+      valid: extraction.valid,
+      items: extraction.draft.items,
+      delivery_address: extraction.draft.delivery_address,
+      delivery_at: extraction.draft.delivery_at,
+      customer_name: extraction.draft.customer_name,
+      notes: extraction.draft.notes,
+      clarification: extraction.clarification,
+      violations: extraction.violations.map((v) => v.code),
+      model: extraction.model,
+      escalated: extraction.escalated,
+      turns_remembered: context?.history.length ?? 0,
+    };
+  } catch (error) {
+    await db.query("ROLLBACK");
+    throw error;
+  } finally {
+    db.release();
   }
+});
 
-  if (!extraction.draft) {
-    reply.code(502);
-    return { ok: false, message: "Extraction failed." };
-  }
-
-  return {
-    ok: true,
-    valid: extraction.valid,
-    items: extraction.draft.items,
-    delivery_address: extraction.draft.delivery_address,
-    delivery_at: extraction.draft.delivery_at,
-    customer_name: extraction.draft.customer_name,
-    notes: extraction.draft.notes,
-    clarification: extraction.clarification,
-    violations: extraction.violations.map((v) => v.code),
-    model: extraction.model,
-    escalated: extraction.escalated,
-  };
+app.post("/conversations/reset", async (request) => {
+  const { chat_id } = z.object({ chat_id: z.string().min(1) }).parse(request.body);
+  const result = await pool.query("DELETE FROM conversations WHERE chat_id = $1", [chat_id]);
+  return { ok: true, cleared: (result.rowCount ?? 0) > 0 };
 });
 
 app.post("/orders", async (request, reply) => {
@@ -208,6 +256,10 @@ app.post("/orders", async (request, reply) => {
     }
 
     const orderId = orderResult.rows[0].id;
+    await db.query("UPDATE customers SET last_address = $2 WHERE id = $1", [customerResult.rows[0].id, body.delivery_address]);
+    if (body.chat_id) {
+      await db.query("DELETE FROM conversations WHERE chat_id = $1", [body.chat_id]);
+    }
     for (const item of body.items) {
       await db.query(
         `

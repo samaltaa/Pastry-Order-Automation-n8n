@@ -361,6 +361,19 @@ td:first-child { font-weight: 600; }
 .edge-legend b { display: inline-block; width: 12px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; border: 1.5px solid; }
 @media print { .poster-sheet .canvas { padding: 2mm; } }
 
+
+
+/* ---------- Memory page ---------- */
+.poster .stepdot circle { fill: var(--accent); }
+.poster .stepdot text { font: 700 9px var(--sans); fill: #fff; text-anchor: middle; }
+.lifecycle { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3mm; margin: 2mm 0 5mm; break-inside: avoid; }
+.lifecycle div { background: var(--cream); border-top: 3px solid var(--accent); border-radius: 4px; padding: 3mm; font: 8.4pt/1.45 var(--sans); }
+.lifecycle b { display: block; font: 700 10pt/1.25 var(--display); margin-bottom: 1mm; }
+.lifecycle code { font-size: 7.6pt; }
+.turns td:nth-child(2) { font-family: var(--serif); font-style: italic; }
+.turns td:last-child { font: 7.8pt/1.4 var(--mono); color: var(--ink-soft); }
+@media (max-width: 760px) { .lifecycle { grid-template-columns: 1fr 1fr; } }
+
 /* ---------- n8n-style canvas ---------- */
 figure {
   margin: 3mm 0 6mm;
@@ -512,6 +525,7 @@ figcaption b { color: var(--ink); }
       <li><span>09</span><div>What to build next<small>Phase 1 done. Phase 2 is next</small></div></li>
       <li><span>10</span><div>Troubleshooting<small>Symptom, cause, fix</small></div></li>
       <li><span>11</span><div>The whole system<small>Every layer and part on one page</small></div></li>
+      <li><span>12</span><div>Conversation memory<small>How the bot remembers each customer</small></div></li>
     </ol>
   </div>
 </section>
@@ -967,7 +981,7 @@ UPDATE menu_items SET is_active = false WHERE id = 5;</div>
   <p class="standfirst">Every workflow exists twice: the live copy n8n runs, and the JSON file git remembers. Edit the live copy, then export it to the file.</p>
 
   <div class="cols">
-    <p class="dropcap">n8n stores workflows in its own tables inside Postgres. Telegram only ever reaches that live copy. The JSON in <span class="path">n8n/workflows/</span> is a backup that you can put in version control and show to an interviewer. The two don't sync on their own, so make it a habit: <b>edit in the editor, then download into the repo and commit</b>.</p>
+    <p class="dropcap">n8n stores workflows in its own tables inside Postgres. Telegram only ever reaches that live copy. The JSON in <span class="path">n8n/workflows/</span> is a backup that you can keep in version control and review like code. The two don't sync on their own, so make it a habit: <b>edit in the editor, then download into the repo and commit</b>.</p>
 
     <h3>Method A — the editor (use this one)</h3>
     <ol class="steps">
@@ -1362,8 +1376,91 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
       <span><b style="background:#fff6ec;border-color:#e08a3c"></b>external service</span>
       <span><b style="background:#fafafa;border-color:#9aa0aa"></b>repo, run by hand</span>
     </div>
-    <figcaption><b>How to read it.</b> Each colored band is one layer, from the MVP core (cream) up to Phase 1's six layers. Inside each band, the inner boxes show <i>where</i> that layer lives. A message enters at the top left, moves down the n8n column on the right, and reaches across into ops-api, Postgres and Claude along dashed lines. Nodes outlined in orange were added in Phase 1.</figcaption>
+    <figcaption><b>How to read it.</b> Each colored band is one layer, from the MVP core (cream) up to Phase 1's six layers. Inside each band, the inner boxes show <i>where</i> that layer lives. A message enters at the top left, moves down the n8n column on the right, and reaches across into ops-api, Postgres and Claude along dashed lines. Nodes outlined in orange were added in Phase 1. Conversation memory sits inside the <i>Extract order</i> step and is shown in detail on the next page.</figcaption>
   </figure>
+</section>
+
+<!-- ============ 12 CONVERSATION MEMORY ============ -->
+<section class="sheet">
+  <p class="kicker">12 · Conversation memory</p>
+  <h2>How the bot remembers</h2>
+  <p class="standfirst">Customers answer one question at a time, change their minds, and come back next week. The bot keeps a small, structured memory for each chat in Postgres, so nobody has to repeat themselves.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 530" role="img" aria-label="Swimlane flow of conversation memory across n8n, ops-api, Postgres and Claude"><g class="sub n8n"><rect x="10" y="10" width="860" height="120" rx="10"/><text class="slabel" x="22" y="26">n8n</text><text class="zdesc" x="53" y="26">order-intake workflow</text></g><g class="sub api"><rect x="10" y="140" width="860" height="120" rx="10"/><text class="slabel" x="22" y="156">ops-api</text><text class="zdesc" x="81" y="156">POST /llm/extract-order, one database transaction</text></g><g class="sub pg"><rect x="10" y="270" width="860" height="120" rx="10"/><text class="slabel" x="22" y="286">POSTGRES</text><text class="zdesc" x="88" y="286">what is remembered</text></g><g class="sub ext"><rect x="10" y="400" width="860" height="120" rx="10"/><text class="slabel" x="22" y="416">CLAUDE API</text><text class="zdesc" x="102" y="416">reads the memory, never stores it</text></g><path class="e flow" d="M99 64 C130 64, 110 194, 144 194"/><path class="e db" d="M209 194 C240 194, 230 324, 254 324"/><path class="e db" d="M319 324 H364"/><path class="e flow" d="M429 324 C455 324, 445 194, 474 194"/><path class="e call" d="M539 194 C570 194, 560 454, 584 454"/><path class="e flow" d="M649 454 C680 454, 670 194, 694 194"/><path class="e flow" d="M759 194 H794"/><path class="e db" d="M828 254 V290"/><path class="e flow" d="M828 162 V126"/><g class="nd" transform="translate(40,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Extract order</text><text class="nl2" x="28" y="82">with LLM</text><text class="ns2" x="28" y="94">message + chat_id</text></g><g class="nd new" transform="translate(150,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-key" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Lock this chat</text><text class="ns2" x="28" y="82">BEGIN · FOR UPDATE</text></g><g class="nd new" transform="translate(260,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">conversations</text><text class="ns2" x="28" y="82">draft + last 6 msgs</text></g><g class="nd new" transform="translate(370,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">customers</text><text class="ns2" x="28" y="82">last_address</text></g><g class="nd new" transform="translate(480,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Build context</text><text class="ns2" x="28" y="82">older than 2h → empty</text></g><g class="nd" transform="translate(590,426)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-spark" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Claude Haiku 5.5</text><text class="ns2" x="28" y="82">returns full updated draft</text></g><g class="nd" transform="translate(700,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">rules.ts</text><text class="ns2" x="28" y="82">+ saved-address offer</text></g><g class="nd new" transform="translate(800,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Save + COMMIT</text><text class="ns2" x="28" y="82">unlocks the chat</text></g><g class="nd" transform="translate(800,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">conversations</text><text class="ns2" x="28" y="82">updated</text></g><g class="nd" transform="translate(800,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Validate</text><text class="nl2" x="28" y="82">extracted order</text></g><g class="stepdot"><circle cx="42" cy="32" r="8"/><text x="42" y="35.5">1</text></g><g class="stepdot"><circle cx="152" cy="162" r="8"/><text x="152" y="165.5">2</text></g><g class="stepdot"><circle cx="262" cy="292" r="8"/><text x="262" y="295.5">3</text></g><g class="stepdot"><circle cx="482" cy="162" r="8"/><text x="482" y="165.5">4</text></g><g class="stepdot"><circle cx="592" cy="422" r="8"/><text x="592" y="425.5">5</text></g><g class="stepdot"><circle cx="702" cy="162" r="8"/><text x="702" y="165.5">6</text></g><g class="stepdot"><circle cx="802" cy="162" r="8"/><text x="802" y="165.5">7</text></g><g class="stepdot"><circle cx="802" cy="32" r="8"/><text x="802" y="35.5">8</text></g></svg>
+    </div>
+    <div class="edge-legend">
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#8f95a0" stroke-width="2"/></svg>flow</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#2a1f19" stroke-width="2" stroke-dasharray="6 4"/></svg>API call</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#336791" stroke-width="2" stroke-dasharray="2 3"/></svg>database read / write</span>
+      <span><b style="background:#fff;border-color:#c9562f"></b>added for memory</span>
+    </div>
+    <figcaption><b>One message, eight steps.</b> Each lane is a part of the system. ① n8n sends the text and the chat ID. ② ops-api opens a transaction and locks this chat's row, so two quick messages are handled one after the other. ③ It reads the saved draft, the last 6 messages, and the customer's last address. ④ A draft older than 2 hours counts as empty. ⑤ Claude gets the draft, the conversation and the new message, and returns the <i>whole</i> updated draft. ⑥ The code rules decide whether the order is valid. If only the address is missing, the code offers the saved one. ⑦ The new draft and history are saved, the transaction commits, and the lock is released. ⑧ n8n carries on as before.</figcaption>
+  </figure>
+
+  <h3>When memory changes</h3>
+  <div class="lifecycle">
+    <div><b>Every message</b>The draft is replaced with Claude's updated version. The message and the bot's reply are added to the history, which keeps only the last 6 entries.</div>
+    <div><b>Order created</b><code>POST /orders</code> deletes the chat's conversation and saves <code>customers.last_address</code>, in the same transaction as the order.</div>
+    <div><b>/cancel</b>Also "cancel" or "cancelar". n8n calls <code>POST /conversations/reset</code>, and the draft and history are deleted.</div>
+    <div><b>2 hours of silence</b>The row stays, but the next message ignores it and starts fresh. Old half-orders don't come back.</div>
+  </div>
+
+  <div class="cols">
+    <h3>A conversation, turn by turn</h3>
+    <table class="turns">
+      <thead><tr><th>#</th><th>Customer</th><th>Bot</th><th>Stored after</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>2 tres leches para mañana a las 3pm</td><td>¿Cuál es la dirección de entrega?</td><td>2× Tres Leches · 10-28 15:00 · no address</td></tr>
+        <tr><td>2</td><td>Calle El Conde 105</td><td>Order #N confirmed ✅</td><td>conversation deleted · last_address saved</td></tr>
+        <tr><td>3</td><td>1 tarta de coco mañana a las 10am</td><td>¿Lo enviamos a Calle El Conde 105 otra vez?</td><td>1× Tarta de coco · 10-28 10:00</td></tr>
+        <tr><td>4</td><td>sí</td><td>Order #N confirmed ✅</td><td>deleted · address kept</td></tr>
+        <tr><td>5</td><td>3 croissants tomorrow at 11am</td><td>Asks for (or offers) the address</td><td>3× Croissant · 11:00</td></tr>
+        <tr><td>6</td><td>actually make it 5, and add 2 pan de queso</td><td>Asks for the address</td><td>5× Croissant, 2× Pan de queso</td></tr>
+        <tr><td>7</td><td>/cancel</td><td>Done, I cleared your order.</td><td>deleted</td></tr>
+      </tbody>
+    </table>
+
+    <h3>What is stored</h3>
+    <p>One row per chat in <code>conversations</code>, keyed by <code>chat_id</code>:</p>
+    <div class="cmd">state = {
+  "draft": { items, delivery_address,
+             delivery_at, notes, … },
+  "history": [
+    { role: "customer", text },
+    { role: "bot", text },
+    …  (last 6) ]
+}
+last_message · updated_at</div>
+    <p>To see it live:</p>
+    <div class="cmd">docker compose exec postgres psql -U pastry \
+  -d pastry_ops -c "select chat_id, state,
+  updated_at from conversations;"</div>
+
+    <div class="box">
+      <h4>Why a draft, not the whole chat log</h4>
+      <p>Claude gets a compact draft plus 6 recent messages, so the cost stays flat however long the chat runs (about $0.0003 per message). The draft is structured data that the rules can check. Only order facts go back to the model, never the previous turn's flags, which stops stale "needs clarification" flags from sticking around. The eval caught exactly that bug.</p>
+    </div>
+    <div class="box where">
+      <h4>Where it lives</h4>
+      <ul>
+        <li><span class="path">ops-api/src/conversation.ts</span>: history limit, 2-hour expiry, <code>advance()</code></li>
+        <li><span class="path">src/llm/extract.ts</span>: draft and conversation in the prompt, treated as data</li>
+        <li><span class="path">src/rules.ts</span>: the saved-address offer</li>
+        <li><span class="path">src/server.ts</span>: lock, load, save, reset, and clear on order</li>
+        <li><span class="path">db/003_conversations.sql</span>: unique <code>chat_id</code>, <code>customers.last_address</code></li>
+        <li><span class="path">evals/cases.jsonl</span>: 10 multi-turn cases <code>mt-01…mt-10</code>, 10/10 passing</li>
+      </ul>
+    </div>
+    <div class="box warn">
+      <h4>Things to know</h4>
+      <ul>
+        <li>The lock holds a database connection during the Claude call (about 2 s). That's fine at bakery scale. At high volume, the next step is a queue per chat.</li>
+        <li>Tune <code>HISTORY_LIMIT</code> and <code>STATE_TTL_HOURS</code> in <span class="path">conversation.ts</span>, then run the eval.</li>
+      </ul>
+    </div>
+  </div>
 </section>
 
 </body>

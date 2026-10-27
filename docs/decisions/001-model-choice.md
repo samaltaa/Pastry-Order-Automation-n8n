@@ -18,6 +18,18 @@
 
 A first routing policy escalated whenever Haiku reported confidence below 0.6. That escalated 17% of cases, all of them messages that were legitimately incomplete ("2 tres leches please"), and raised the routed cost to $0.00082 with no accuracy gain.
 
+## Update 2026-10-27: conversation memory
+
+10 multi-turn cases were added (40 total). The first run exposed three prompt issues, all fixed: stale flags from the saved draft carried into new turns, the bot asked a generic address question instead of offering the saved address, and "beef empanadas" was not matched across languages.
+
+| Mode | Accuracy | Multi-turn | Cost / order |
+|---|---|---|---|
+| claude-haiku-5-5 | 40/40 | 10/10 | $0.00030 |
+| claude-sonnet-5-5 | 40/40 | 10/10 | $0.00592 |
+| routed | 40/40 | 10/10 | $0.00030 |
+
+The decision below still holds.
+
 ## Decision
 
 - Default to `claude-haiku-5-5` with structured outputs and `effort: low`.

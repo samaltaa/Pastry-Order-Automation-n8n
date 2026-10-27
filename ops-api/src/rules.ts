@@ -116,8 +116,11 @@ export function checkDeliveryTime(deliveryAt: string, now: Date): Violation[] {
   return [];
 }
 
-export function clarificationFor(draft: OrderDraft, violations: Violation[]): string {
+export function clarificationFor(draft: OrderDraft, violations: Violation[], savedAddress: string | null = null): string {
   const policy = violations.find((v) => ["off_menu", "outside_hours", "too_soon", "too_far", "bad_quantity"].includes(v.code));
   if (policy) return policy.message;
+  if (savedAddress && violations.some((v) => v.code === "no_address") && violations.every((v) => ["no_address", "ambiguous"].includes(v.code))) {
+    return `¿Lo enviamos a ${savedAddress} otra vez? / Same address as last time? Reply "sí" or send a new address.`;
+  }
   return draft.clarification ?? violations[0]?.message ?? "Could you tell me a bit more about your order?";
 }

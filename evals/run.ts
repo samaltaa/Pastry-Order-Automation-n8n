@@ -2,13 +2,21 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOrder, Extraction, FAST_MODEL, STRONG_MODEL } from "../ops-api/src/llm/extract.js";
+import { advance, emptyState } from "../ops-api/src/conversation.js";
 import { MenuItem } from "../ops-api/src/rules.js";
 
 type Case = {
   id: string;
   category: string;
-  message: string;
-  expect: { valid: boolean; items?: { item_id: number; quantity: number }[]; delivery_at?: string };
+  message?: string;
+  turns?: string[];
+  saved_address?: string;
+  expect: {
+    valid: boolean;
+    items?: { item_id: number; quantity: number }[];
+    delivery_at?: string;
+    delivery_address_contains?: string;
+  };
 };
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -49,6 +57,9 @@ function grade(c: Case, result: Extraction): string | null {
   if (c.expect.delivery_at && result.draft.delivery_at !== c.expect.delivery_at) {
     return `delivery_at ${result.draft.delivery_at}, expected ${c.expect.delivery_at}`;
   }
+  if (c.expect.delivery_address_contains && !result.draft.delivery_address?.includes(c.expect.delivery_address_contains)) {
+    return `address ${result.draft.delivery_address}, expected to contain ${c.expect.delivery_address_contains}`;
+  }
   return null;
 }
 
@@ -71,14 +82,23 @@ const report: string[] = [
   "",
   `${cases.length} cases · fixed clock ${NOW.toISOString()} · run ${new Date().toISOString().slice(0, 10)}`,
   "",
-  "| Mode | Accuracy | Injection cases | Avg cost / order | Avg latency | Escalation rate |",
-  "|---|---|---|---|---|---|",
+  "| Mode | Accuracy | Injection cases | Multi-turn cases | Avg cost / order | Avg latency | Escalation rate |",
+  "|---|---|---|---|---|---|---|",
 ];
 const failures: string[] = [];
 
 for (const mode of modes) {
   const results = await pool(cases, CONCURRENCY, async (c) => {
-    const result = await extractOrder(c.message, MENU, NOW, mode.models);
+    const turns = c.turns ?? [c.message ?? ""];
+    let state = emptyState();
+    const calls: Extraction["calls"] = [];
+    let result!: Extraction;
+    for (const turn of turns) {
+      result = await extractOrder(turn, MENU, NOW, mode.models, { ...state, savedAddress: c.saved_address ?? null });
+      calls.push(...result.calls);
+      state = advance(state, turn, result);
+    }
+    result = { ...result, calls, escalated: calls.length > turns.length };
     return { c, result, failure: grade(c, result) };
   });
   const passed = results.filter((r) => !r.failure).length;
@@ -87,8 +107,10 @@ for (const mode of modes) {
   const cost = results.reduce((sum, r) => sum + r.result.calls.reduce((s, call) => s + call.costUsd, 0), 0);
   const latency = results.reduce((sum, r) => sum + r.result.calls.reduce((s, call) => s + call.latencyMs, 0), 0);
   const escalated = results.filter((r) => r.result.escalated).length;
+  const multi = results.filter((r) => r.c.turns);
+  const multiPassed = multi.filter((r) => !r.failure).length;
 
-  const row = `| ${mode.name} | ${passed}/${cases.length} (${Math.round((passed / cases.length) * 100)}%) | ${injectionPassed}/${injection.length} | $${(cost / cases.length).toFixed(5)} | ${Math.round(latency / cases.length)} ms | ${Math.round((escalated / cases.length) * 100)}% |`;
+  const row = `| ${mode.name} | ${passed}/${cases.length} (${Math.round((passed / cases.length) * 100)}%) | ${injectionPassed}/${injection.length} | ${multiPassed}/${multi.length} | $${(cost / cases.length).toFixed(5)} | ${Math.round(latency / cases.length)} ms | ${Math.round((escalated / cases.length) * 100)}% |`;
   report.push(row);
   console.log(row);
   for (const r of results.filter((r) => r.failure)) {

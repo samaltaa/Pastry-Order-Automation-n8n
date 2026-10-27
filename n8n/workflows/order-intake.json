@@ -132,6 +132,30 @@
               },
               "renameOutput": true,
               "outputKey": "menu"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cmd-cancel",
+                    "leftValue": "={{ $('Telegram webhook').first().json.body.message.text.trim() }}",
+                    "rightValue": "^(/cancel|cancel|cancelar)\\b",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cancel"
             }
           ]
         },
@@ -226,7 +250,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ message: $('Telegram webhook').first().json.body.message.text, ref: 'telegram:' + $('Telegram webhook').first().json.body.update_id }) }}"
+        "jsonBody": "={{ JSON.stringify({ message: $('Telegram webhook').first().json.body.message.text, ref: 'telegram:' + $('Telegram webhook').first().json.body.update_id, chat_id: String($('Telegram webhook').first().json.body.message.chat.id) }) }}"
       },
       "onError": "continueErrorOutput"
     },
@@ -275,7 +299,7 @@
         "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ customer_name: $json.customer_name || $('Telegram webhook').first().json.body.message.from.first_name || 'Guest', customer_phone: 'tg:' + $('Telegram webhook').first().json.body.message.chat.id, delivery_address: $json.delivery_address, delivery_time: $json.delivery_at, items: $json.items, notes: $json.notes, idempotency_key: 'tg-' + $('Telegram webhook').first().json.body.update_id }) }}"
+        "jsonBody": "={{ JSON.stringify({ customer_name: $json.customer_name || $('Telegram webhook').first().json.body.message.from.first_name || 'Guest', customer_phone: 'tg:' + $('Telegram webhook').first().json.body.message.chat.id, delivery_address: $json.delivery_address, delivery_time: $json.delivery_at, items: $json.items, notes: $json.notes, idempotency_key: 'tg-' + $('Telegram webhook').first().json.body.update_id, chat_id: String($('Telegram webhook').first().json.body.message.chat.id) }) }}"
       },
       "onError": "continueErrorOutput"
     },
@@ -347,6 +371,56 @@
           "appendAttribution": false
         }
       }
+    },
+    {
+      "id": "reset-conversation",
+      "name": "Reset conversation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://ops-api:3001/conversations/reset",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.OPS_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ chat_id: String($('Telegram webhook').first().json.body.message.chat.id) }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "send-reset",
+      "name": "Confirm cancel",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1320,
+        -400
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pastryTelegramBot",
+          "name": "Pastry Telegram bot"
+        }
+      },
+      "parameters": {
+        "chatId": "={{ $('Telegram webhook').first().json.body.message.chat.id }}",
+        "text": "Done, I cleared your order. Send /menu to start again.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      }
     }
   ],
   "connections": {
@@ -401,6 +475,13 @@
         [
           {
             "node": "Get menu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Reset conversation",
             "type": "main",
             "index": 0
           }
@@ -484,6 +565,17 @@
         [
           {
             "node": "Send apology",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reset conversation": {
+      "main": [
+        [
+          {
+            "node": "Confirm cancel",
             "type": "main",
             "index": 0
           }

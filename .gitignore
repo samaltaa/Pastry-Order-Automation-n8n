@@ -5,3 +5,9 @@ node_modules/
 .n8n/
 .DS_Store
 ops-api/dist/
+
+# Private: job application material
+resume.yaml
+overview.html
+job_reqs.md
+claude.md
