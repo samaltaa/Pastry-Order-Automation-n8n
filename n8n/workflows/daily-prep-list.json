@@ -1,0 +1,51 @@
+{
+  "name": "daily-prep-list",
+  "nodes": [
+    {
+      "id": "cron",
+      "name": "Daily 6am cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hour",
+              "value": 6
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "query-orders",
+      "name": "Load today orders",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [250, 0],
+      "parameters": {
+        "query": "SELECT o.id, c.name, o.delivery_address, o.delivery_time, o.total FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE DATE(o.created_at) = CURRENT_DATE ORDER BY o.created_at ASC"
+      }
+    },
+    {
+      "id": "telegram-alert",
+      "name": "Send prep list",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [500, 0],
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_BOT_TOKEN }}",
+        "text": "={{ 'Prep list for today:\n' + $json }}"
+      }
+    }
+  ],
+  "connections": {
+    "cron": {
+      "main": [[{ "node": "query-orders", "type": "main", "index": 0 }]]
+    },
+    "query-orders": {
+      "main": [[{ "node": "telegram-alert", "type": "main", "index": 0 }]]
+    }
+  }
+}

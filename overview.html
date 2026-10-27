@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pastry Ops Automation Overview</title>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose',
+      });
+    </script>
+    <style>
+      :root {
+        --bg: #f5efe6;
+        --panel: #fffdf9;
+        --ink: #1f2937;
+        --muted: #5f6b7a;
+        --primary: #b45309;
+        --primary-soft: #fef3c7;
+        --accent: #0f766e;
+        --accent-soft: #ccfbf1;
+        --line: #d7d3ce;
+        --shadow: 0 12px 30px rgba(31, 41, 55, 0.08);
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, #f9f5ee 0%, #f1e8db 100%);
+        color: var(--ink);
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.7;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+      }
+
+      .hero {
+        background: linear-gradient(135deg, #fffaf3 0%, #f7e8d5 100%);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        box-shadow: var(--shadow);
+        padding: 32px 28px;
+        margin-bottom: 28px;
+      }
+
+      .eyebrow {
+        display: inline-block;
+        background: var(--primary-soft);
+        border: 1px solid #f7d58b;
+        color: var(--primary);
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        font-size: clamp(2.2rem, 4vw, 4rem);
+        line-height: 1.1;
+        margin: 16px 0 16px;
+      }
+
+      h2 {
+        font-size: 1.8rem;
+        margin-top: 36px;
+        margin-bottom: 14px;
+      }
+
+      h3 {
+        font-size: 1.2rem;
+        margin-top: 18px;
+        margin-bottom: 10px;
+      }
+
+      p, li {
+        font-size: 1.02rem;
+        color: var(--ink);
+      }
+
+      .lead {
+        font-size: 1.08rem;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 18px;
+        margin: 24px 0;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 20px 18px;
+        box-shadow: var(--shadow);
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 0.9rem;
+        color: var(--primary);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .diagram-box {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 20px;
+        box-shadow: var(--shadow);
+        margin-bottom: 22px;
+        overflow: auto;
+      }
+
+      .note {
+        background: var(--accent-soft);
+        border-left: 4px solid var(--accent);
+        border-radius: 10px;
+        padding: 14px 16px;
+        color: #0b4b44;
+        font-weight: 500;
+      }
+
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .tag {
+        background: var(--primary-soft);
+        border: 1px solid #f6d889;
+        color: var(--primary);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      ul {
+        padding-left: 1.2rem;
+      }
+
+      code {
+        font-family: Consolas, "Liberation Mono", monospace;
+        background: #f3f4f6;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 16px;
+      }
+
+      th, td {
+        border: 1px solid var(--line);
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        background: #f8f2ea;
+      }
+
+      @media (max-width: 700px) {
+        .container { padding: 24px 16px 60px; }
+        h1 { font-size: 2.2rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="hero">
+        <div class="eyebrow">Stage 1 Overview</div>
+        <h1>Pastry Ops Automation</h1>
+        <p class="lead">
+          A lightweight AI automation system for handling pastry orders, grounded in real menu data, orchestrated with n8n,
+          validated by a Fastify backend, and stored durably in PostgreSQL.
+        </p>
+        <div class="tag-list">
+          <span class="tag">Webhook intake</span>
+          <span class="tag">Structured extraction</span>
+          <span class="tag">Grounding</span>
+          <span class="tag">Idempotency</span>
+          <span class="tag">Docker orchestration</span>
+        </div>
+      </header>
+
+      <section>
+        <h2>1. System overview</h2>
+        <div class="diagram-box">
+          <pre class="mermaid">
+flowchart LR
+    A[Customer message] --> B[Telegram webhook]
+    B --> C[n8n workflow]
+    C --> D[Check duplicate update]
+    D --> E[Load conversation state]
+    E --> F[LLM structured extraction]
+    F --> G[Validate against menu + rules]
+    G --> H{Valid?}
+    H -->|No| I[Ask clarifying question]
+    H -->|Yes| J[Fastify API /orders]
+    J --> K[Postgres: orders + order_items]
+    K --> L[Confirmation to customer]
+          </pre>
+        </div>
+        <p>
+          This is the core architecture pattern: the user message enters through a message channel, n8n handles the flow,
+          and the backend service enforces the rules. The LLM is used for understanding, but not for deciding prices or business policy.
+        </p>
+      </section>
+
+      <section>
+        <h2>2. Why this design exists</h2>
+        <div class="grid">
+          <div class="card">
+            <strong>n8n</strong>
+            Orchestrates triggers, branches, message handling, and workflow logic. It is the automation control plane.
+          </div>
+          <div class="card">
+            <strong>Fastify</strong>
+            Owns validation, business rules, persistence logic, and stable API contracts.
+          </div>
+          <div class="card">
+            <strong>PostgreSQL</strong>
+            Stores the menu, customer records, orders, item lines, dedupe keys, and conversation state.
+          </div>
+          <div class="card">
+            <strong>LLM</strong>
+            Interprets language and returns a structured order payload, but does not decide pricing or policy.
+          </div>
+        </div>
+        <div class="note">
+          The key interview principle: orchestration is not business logic. Business logic belongs in a service with tests and validation.
+        </div>
+      </section>
+
+      <section>
+        <h2>3. Grounding: menu and pricing come from the database</h2>
+        <div class="diagram-box">
+          <pre class="mermaid">
+flowchart TD
+    A[Customer request] --> B[LLM extraction]
+    B --> C[Menu rows from Postgres]
+    C --> D[Map request to item_id]
+    D --> E[Compute total in code]
+    E --> F[Write order to database]
+          </pre>
+        </div>
+        <p>
+          Grounding means the model sees a real catalog of menu items and must map the request to known product IDs. The app never asks the LLM to invent a product or choose a price. Pricing is computed from the DB and tested in code.
+        </p>
+        <ul>
+          <li>Products are stored in <code>menu_items</code></li>
+          <li>Orders reference menu item IDs, not free-form names</li>
+          <li>The total is computed in the backend, not by the model</li>
+          <li>Unknown products are rejected or clarified</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. Server request lifecycle</h2>
+        <div class="diagram-box">
+          <pre class="mermaid">
+flowchart LR
+    A[Incoming HTTP request] --> B[Fastify route handler]
+    B --> C[Validate request schema with Zod]
+    C --> D[Query Postgres for menu rows]
+    D --> E[Reject invalid or unknown items]
+    E --> F[Compute total]
+    F --> G[Insert customer, order, items]
+    G --> H[Return JSON response]
+          </pre>
+        </div>
+        <p>
+          The server acts as the guardrail layer. It handles validation, pricing, and writes. This keeps the workflow correct even when the model behaves imperfectly.
+        </p>
+      </section>
+
+      <section>
+        <h2>5. Idempotency and duplicate protection</h2>
+        <div class="diagram-box">
+          <pre class="mermaid">
+flowchart TD
+    A[Webhook arrives] --> B[Check update_id or idempotency_key]
+    B --> C{Seen before?}
+    C -->|Yes| D[Ignore duplicate]
+    C -->|No| E[Process order]
+    E --> F[Persist processed id]
+    F --> G[Return success]
+          </pre>
+        </div>
+        <p>
+          Webhooks can be retried. Duplicate deliveries are a normal production issue. This project prevents double-booking and duplicate orders by recording the source event ID, then ignoring repeats.
+        </p>
+      </section>
+
+      <section>
+        <h2>6. Docker and local environment</h2>
+        <div class="diagram-box">
+          <pre class="mermaid">
+flowchart LR
+    A[Developer machine] --> B[docker compose]
+    B --> C[postgres container]
+    B --> D[n8n container]
+    B --> E[ops-api container]
+    B --> F[cloudflared container]
+
+    D --> G[Webhook trigger]
+    E --> H[API endpoints]
+    C --> I[Database tables]
+    G --> H
+    H --> C
+          </pre>
+        </div>
+        <p>
+          Docker Compose gives a single runtime model: Postgres provides state, n8n provides orchestration, and the Fastify service provides business behavior. The cloudflared service exposes the local webhook endpoint externally when needed.
+        </p>
+      </section>
+
+      <section>
+        <h2>7. End-to-end order flow</h2>
+        <div class="diagram-box">
+          <pre class="mermaid">
+sequenceDiagram
+    participant Customer
+    participant Telegram
+    participant n8n
+    participant API
+    participant Postgres
+
+    Customer->>Telegram: Sends order text
+    Telegram->>n8n: Webhook event
+    n8n->>n8n: Check duplicate update
+    n8n->>API: POST /llm/extract-order
+    API->>Postgres: Load menu catalog
+    API-->>n8n: Extracted order payload
+    n8n->>n8n: Validate items and timing
+    n8n->>API: POST /orders
+    API->>Postgres: Validate ids and compute total
+    API->>Postgres: Insert customer and order rows
+    API-->>n8n: Success / duplicate / error
+    n8n->>Telegram: Send confirmation or clarification
+          </pre>
+        </div>
+        <p>
+          This end-to-end flow is exactly what an interviewer wants to hear: request enters the system, gets interpreted, validated, persisted, then confirmed back to the user.
+        </p>
+      </section>
+
+      <section>
+        <h2>8. Core patterns to study</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Pattern</th>
+              <th>What it means</th>
+              <th>Why it matters</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Webhook-first design</td>
+              <td>External systems trigger event-driven automation</td>
+              <td>Customer events are asynchronous and sometimes retried</td>
+            </tr>
+            <tr>
+              <td>Grounding</td>
+              <td>LLM works with real database data instead of free assumptions</td>
+              <td>Reduces hallucination and priced mistakes</td>
+            </tr>
+            <tr>
+              <td>Structured extraction</td>
+              <td>Model returns a machine-readable payload with predictable keys</td>
+              <td>Validation and downstream automation become reliable</td>
+            </tr>
+            <tr>
+              <td>Idempotency</td>
+              <td>Duplicate events are rejected or safely ignored</td>
+              <td>Prevents double-charging and double-orders</td>
+            </tr>
+            <tr>
+              <td>Separation of duties</td>
+              <td>n8n orchestrates, API validates, DB stores truth</td>
+              <td>Clearer system design and easier troubleshooting</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>9. The most important interview statement</h2>
+        <div class="note">
+          This system uses n8n to orchestrate messages, a Fastify API to enforce business rules, and PostgreSQL as the source of truth. The model only interprets language. The backend validates item IDs, computes totals, and prevents duplicate writes.
+        </div>
+      </section>
+
+      <section>
+        <h2>10. Key files</h2>
+        <ul>
+          <li><code>docker-compose.yml</code> — runtime composition</li>
+          <li><code>db/init.sql</code> — schema and menu seed</li>
+          <li><code>ops-api/src/server.ts</code> — API and validation logic</li>
+          <li><code>n8n/workflows/order-intake.json</code> — order intake orchestration</li>
+          <li><code>n8n/workflows/daily-prep-list.json</code> — scheduled order summary</li>
+        </ul>
+      </section>
+    </div>
+  </body>
+</html>

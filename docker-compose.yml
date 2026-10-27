@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pastry-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pastry_ops}
+      POSTGRES_USER: ${POSTGRES_USER:-pastry}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pastry} -d ${POSTGRES_DB:-pastry_ops}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ops-api:
+    build:
+      context: ./ops-api
+      dockerfile: Dockerfile
+    container_name: pastry-ops-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pastry}:${POSTGRES_PASSWORD:-change_me}@postgres:5432/${POSTGRES_DB:-pastry_ops}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-3001}:3001"
+
+  n8n:
+    image: n8nio/n8n:1.76.1
+    container_name: pastry-n8n
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-pastry_ops}
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-pastry}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_HOST: localhost
+      N8N_PORT: ${N8N_PORT:-5678}
+      N8N_PROTOCOL: http
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://localhost:5678/}
+      GENERIC_TIMEZONE: America/Santo_Domingo
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      NODE_ENV: development
+    ports:
+      - "${N8N_PORT:-5678}:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: pastry-cloudflared
+    restart: unless-stopped
+    depends_on:
+      - n8n
+    # Quick tunnel: free random *.trycloudflare.com URL that changes on restart.
+    # With a domain, switch to a named tunnel: command: tunnel run --token <token>
+    command: tunnel --no-autoupdate --url http://n8n:5678
+
+volumes:
+  postgres_data:
+  n8n_data:

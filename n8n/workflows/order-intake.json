@@ -1,0 +1,169 @@
+{
+  "id": "pastryOrderIntake",
+  "name": "Order intake",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "id": "telegram-trigger",
+      "name": "Telegram webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "0b6c5c2e-6a51-4c1e-9d4e-7f1f6a3b2c10",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "order-intake",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "verify-update",
+      "name": "Verify Telegram update",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [240, 0],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.headers['x-telegram-bot-api-secret-token'] }}",
+              "operation": "equal",
+              "value2": "={{ $env.TELEGRAM_WEBHOOK_SECRET }}"
+            },
+            {
+              "value1": "={{ $json.body.message?.text }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        },
+        "combineOperation": "all"
+      }
+    },
+    {
+      "id": "load-menu",
+      "name": "Load menu",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 0],
+      "parameters": {
+        "url": "http://ops-api:3001/menu",
+        "options": {}
+      }
+    },
+    {
+      "id": "llm-extract",
+      "name": "Extract order with LLM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 0],
+      "executeOnce": true,
+      "parameters": {
+        "method": "POST",
+        "url": "http://ops-api:3001/llm/extract-order",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $('Telegram webhook').first().json.body.message.text, menu_items: $('Load menu').all().map(i => i.json) }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "validate-order",
+      "name": "Validate extracted order",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [960, 0],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "save-order",
+      "name": "Create order via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, -100],
+      "parameters": {
+        "method": "POST",
+        "url": "http://ops-api:3001/orders",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_name: $json.customer_name || $('Telegram webhook').first().json.body.message.from.first_name || 'Guest', customer_phone: $json.customer_phone || '00000000', delivery_address: $json.delivery_address, delivery_time: $json.delivery_time, items: $json.items, notes: $json.notes, idempotency_key: 'tg-' + $('Telegram webhook').first().json.body.update_id }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "confirm-order",
+      "name": "Send confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1440, -100],
+      "credentials": {
+        "telegramApi": {
+          "id": "pastryTelegramBot",
+          "name": "Pastry Telegram bot"
+        }
+      },
+      "parameters": {
+        "chatId": "={{ $('Telegram webhook').first().json.body.message.chat.id }}",
+        "text": "={{ 'Your order #' + $json.order.id + ' has been received. Total: ' + $json.order.total + ' RD$.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "clarify",
+      "name": "Ask clarifying question",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1200, 100],
+      "credentials": {
+        "telegramApi": {
+          "id": "pastryTelegramBot",
+          "name": "Pastry Telegram bot"
+        }
+      },
+      "parameters": {
+        "chatId": "={{ $('Telegram webhook').first().json.body.message.chat.id }}",
+        "text": "={{ $json.clarification || $json.message || 'I need one missing detail before I can place the order.' }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram webhook": {
+      "main": [[{ "node": "Verify Telegram update", "type": "main", "index": 0 }]]
+    },
+    "Verify Telegram update": {
+      "main": [[{ "node": "Load menu", "type": "main", "index": 0 }], []]
+    },
+    "Load menu": {
+      "main": [[{ "node": "Extract order with LLM", "type": "main", "index": 0 }]]
+    },
+    "Extract order with LLM": {
+      "main": [[{ "node": "Validate extracted order", "type": "main", "index": 0 }]]
+    },
+    "Validate extracted order": {
+      "main": [
+        [{ "node": "Create order via API", "type": "main", "index": 0 }],
+        [{ "node": "Ask clarifying question", "type": "main", "index": 0 }]
+      ]
+    },
+    "Create order via API": {
+      "main": [[{ "node": "Send confirmation", "type": "main", "index": 0 }]]
+    }
+  }
+}
