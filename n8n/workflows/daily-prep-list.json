@@ -1,51 +1,100 @@
 {
-  "name": "daily-prep-list",
+  "id": "pastryDailyPrepList",
+  "name": "Daily prep list",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
   "nodes": [
     {
       "id": "cron",
-      "name": "Daily 6am cron",
-      "type": "n8n-nodes-base.cron",
-      "typeVersion": 1,
-      "position": [0, 0],
+      "name": "Every day 6am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
       "parameters": {
         "rule": {
           "interval": [
             {
-              "field": "hour",
-              "value": 6
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
             }
           ]
         }
       }
     },
     {
-      "id": "query-orders",
-      "name": "Load today orders",
-      "type": "n8n-nodes-base.postgres",
-      "typeVersion": 2,
-      "position": [250, 0],
+      "id": "prep-list",
+      "name": "Get prep list",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
       "parameters": {
-        "query": "SELECT o.id, c.name, o.delivery_address, o.delivery_time, o.total FROM orders o LEFT JOIN customers c ON c.id = o.customer_id WHERE DATE(o.created_at) = CURRENT_DATE ORDER BY o.created_at ASC"
+        "url": "http://ops-api:3001/reports/prep-list",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.OPS_API_KEY }}"
+            }
+          ]
+        },
+        "options": {}
       }
     },
     {
-      "id": "telegram-alert",
+      "id": "send-prep",
       "name": "Send prep list",
       "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1,
-      "position": [500, 0],
+      "typeVersion": 1.2,
+      "position": [
+        440,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pastryTelegramBot",
+          "name": "Pastry Telegram bot"
+        }
+      },
       "parameters": {
-        "chatId": "={{ $env.TELEGRAM_BOT_TOKEN }}",
-        "text": "={{ 'Prep list for today:\n' + $json }}"
+        "chatId": "={{ $env.OWNER_TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
       }
     }
   ],
   "connections": {
-    "cron": {
-      "main": [[{ "node": "query-orders", "type": "main", "index": 0 }]]
+    "Every day 6am": {
+      "main": [
+        [
+          {
+            "node": "Get prep list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
-    "query-orders": {
-      "main": [[{ "node": "telegram-alert", "type": "main", "index": 0 }]]
+    "Get prep list": {
+      "main": [
+        [
+          {
+            "node": "Send prep list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }

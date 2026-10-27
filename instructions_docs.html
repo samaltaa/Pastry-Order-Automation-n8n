@@ -1,0 +1,1370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pastry Ops Manual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #2a1f19;
+  --ink-soft: #5c4f47;
+  --muted: #8a7f78;
+  --paper: #ffffff;
+  --cream: #fbf6ee;
+  --cream-deep: #f3e8d8;
+  --accent: #c9562f;
+  --accent-soft: #f6dfd3;
+  --rule: #e4d9cb;
+  --code-bg: #f6f2ec;
+  --canvas: #f5f5f7;
+  --canvas-dot: #d9dbe0;
+  --display: "Fraunces", Georgia, serif;
+  --serif: "Source Serif 4", Georgia, serif;
+  --sans: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+
+@page { size: A4; margin: 15mm 14mm 16mm; }
+
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body {
+  margin: 0;
+  background: #e8e1d6;
+  color: var(--ink);
+  font: 10.5pt/1.55 var(--serif);
+}
+
+.sheet {
+  width: 210mm;
+  max-width: 100%;
+  margin: 14mm auto;
+  padding: 16mm 15mm 18mm;
+  background: var(--paper);
+  box-shadow: 0 2px 18px rgba(60, 40, 20, .15);
+}
+@media print {
+  body { background: #fff; }
+  .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; }
+  .sheet + .sheet { break-before: page; }
+}
+@media (max-width: 760px) {
+  .sheet { margin: 0 0 12px; padding: 20px 16px; }
+  .cols { columns: 1 !important; }
+}
+
+/* ---------- Cover ---------- */
+.cover {
+  background: var(--cream);
+  position: relative;
+  overflow: hidden;
+}
+.cover .masthead {
+  display: flex;
+  justify-content: space-between;
+  font: 600 8pt var(--sans);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 6px;
+}
+.cover h1 {
+  font: 800 54pt/0.95 var(--display);
+  letter-spacing: -.02em;
+  margin: 22mm 0 6mm;
+}
+.cover h1 em { font-style: normal; color: var(--accent); }
+.cover .dek {
+  font: italic 15pt/1.4 var(--serif);
+  color: var(--ink-soft);
+  max-width: 135mm;
+  margin: 0 0 12mm;
+}
+.cover .rule-house {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  margin: 0 0 12mm;
+}
+.cover .rule-house div {
+  padding: 8px 10px;
+  font: 500 8.5pt/1.35 var(--sans);
+  border-right: 1px solid var(--rule);
+}
+.cover .rule-house div:last-child { border-right: 0; }
+.cover .rule-house b {
+  display: block;
+  font: 700 12pt var(--display);
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+.toc h3 {
+  font: 700 8pt var(--sans);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+}
+.toc ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  columns: 2;
+  column-gap: 10mm;
+}
+.toc li {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--rule);
+  break-inside: avoid;
+  font: 10pt/1.3 var(--serif);
+}
+.toc li span {
+  font: 700 10pt var(--display);
+  color: var(--accent);
+  min-width: 22px;
+}
+.toc li small { display: block; color: var(--muted); font: 8pt var(--sans); }
+
+/* ---------- Section heads ---------- */
+.kicker {
+  font: 700 8pt var(--sans);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 4px;
+}
+h2 {
+  font: 800 30pt/1.02 var(--display);
+  letter-spacing: -.015em;
+  margin: 0 0 4mm;
+  break-after: avoid;
+}
+.standfirst {
+  font: italic 13pt/1.45 var(--serif);
+  color: var(--ink-soft);
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 5mm;
+  margin: 0 0 6mm;
+}
+h3 {
+  font: 700 14pt/1.2 var(--display);
+  margin: 6mm 0 2mm;
+  break-after: avoid;
+}
+h4 {
+  font: 700 8.5pt var(--sans);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 4mm 0 1.5mm;
+  break-after: avoid;
+}
+p { margin: 0 0 3mm; }
+.cols { columns: 2; column-gap: 8mm; }
+.cols > *:first-child { margin-top: 0; }
+.dropcap::first-letter {
+  float: left;
+  font: 800 38pt/0.8 var(--display);
+  color: var(--accent);
+  padding: 4px 6px 0 0;
+}
+
+code, .path {
+  font: 8.6pt var(--mono);
+  background: var(--code-bg);
+  border-radius: 3px;
+  padding: 0 3px;
+  white-space: nowrap;
+}
+code.wrap { white-space: normal; }
+.cmd {
+  font: 8.4pt/1.5 var(--mono);
+  background: #2a1f19;
+  color: #f7ede2;
+  border-radius: 5px;
+  padding: 8px 11px;
+  margin: 2mm 0 3.5mm;
+  white-space: pre-wrap;
+  word-break: break-word;
+  break-inside: avoid;
+}
+.cmd .c { color: #c8b6a6; }
+
+ul, ol { margin: 0 0 3mm; padding-left: 5mm; }
+li { margin-bottom: 1.2mm; }
+
+.pull {
+  font: 600 15pt/1.3 var(--display);
+  color: var(--accent);
+  border-top: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  padding: 4mm 0;
+  margin: 3mm 0 5mm;
+  break-inside: avoid;
+}
+
+.box {
+  background: var(--cream);
+  border-left: 4px solid var(--accent);
+  padding: 4mm 5mm;
+  margin: 3mm 0 4mm;
+  break-inside: avoid;
+  font-size: 9.8pt;
+}
+.box.where { border-left-color: #3a6ee8; background: #f1f4fb; }
+.box.warn { border-left-color: #b8322a; background: #fbefed; }
+.box h4 { margin-top: 0; }
+.box p:last-child, .box ul:last-child { margin-bottom: 0; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font: 8.6pt/1.4 var(--sans);
+  margin: 2mm 0 5mm;
+  break-inside: auto;
+}
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th {
+  text-align: left;
+  font-weight: 700;
+  font-size: 7.6pt;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  border-bottom: 2px solid var(--ink);
+  padding: 5px 6px;
+}
+td {
+  border-bottom: 1px solid var(--rule);
+  padding: 5px 6px;
+  vertical-align: top;
+}
+td code { font-size: 7.8pt; white-space: normal; }
+td:first-child { font-weight: 600; }
+
+.tree {
+  font: 8.4pt/1.6 var(--mono);
+  background: var(--cream);
+  border-radius: 6px;
+  padding: 4mm 5mm;
+  break-inside: avoid;
+  margin: 2mm 0 5mm;
+}
+.tree div { display: grid; grid-template-columns: 62mm 1fr; gap: 4mm; }
+.tree span { font-family: var(--sans); font-size: 8.4pt; color: var(--ink-soft); }
+.tree .d { font-weight: 600; color: var(--ink); }
+
+.steps { counter-reset: step; list-style: none; padding: 0; }
+.steps > li {
+  position: relative;
+  padding-left: 11mm;
+  margin-bottom: 4mm;
+  break-inside: avoid;
+}
+.steps > li::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -1px;
+  width: 7.5mm;
+  height: 7.5mm;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font: 700 10pt/7.5mm var(--sans);
+  text-align: center;
+}
+.steps > li > b:first-child { font-family: var(--sans); font-size: 9.8pt; }
+
+.check { list-style: none; padding: 0; }
+.check li { padding-left: 6mm; position: relative; }
+.check li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+}
+
+/* ---------- Layer cake ---------- */
+.layers { display: grid; gap: 2mm; margin: 3mm 0 5mm; break-inside: avoid; }
+.layer {
+  display: grid;
+  grid-template-columns: 38mm 1fr 52mm;
+  gap: 4mm;
+  align-items: start;
+  border-radius: 6px;
+  padding: 3mm 4mm;
+  background: var(--accent-soft);
+  border-left: 5px solid var(--accent);
+  font: 8.6pt/1.45 var(--sans);
+}
+.layer.core { background: var(--cream-deep); border-left-color: var(--ink); }
+.layer b { font: 700 10.5pt/1.2 var(--display); display: block; }
+.layer .tagline { font-size: 7.4pt; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.layer.core .tagline { color: var(--ink-soft); }
+.layer .where { font: 7.8pt/1.5 var(--mono); color: var(--ink-soft); }
+@media (max-width: 760px) { .layer { grid-template-columns: 1fr; } }
+
+
+
+/* ---------- System poster ---------- */
+.poster-sheet h2 { font-size: 24pt; }
+.poster .zone rect { stroke-width: 1.6; }
+.poster .zone.core rect { fill: #f1e6d6; stroke: #2a1f19; }
+.poster .zone.l1 rect { fill: #fbe0de; stroke: #b8322a; }
+.poster .zone.l2 rect { fill: #dde8fb; stroke: #3a6ee8; }
+.poster .zone.l3 rect { fill: #ece1fa; stroke: #7c4ddb; }
+.poster .zone.l4 rect { fill: #dcf2ec; stroke: #1f8a70; }
+.poster .zone.l5 rect { fill: #fcedcc; stroke: #c98a12; }
+.poster .zone.l6 rect { fill: #e3eed8; stroke: #4f7a28; }
+.poster .ztag { font: 800 10.5px var(--sans); letter-spacing: .08em; fill: #2a1f19; }
+.poster .zone.l1 .ztag { fill: #b8322a; } .poster .zone.l2 .ztag { fill: #2f5fd0; }
+.poster .zone.l3 .ztag { fill: #6a3cc8; } .poster .zone.l4 .ztag { fill: #1f8a70; }
+.poster .zone.l5 .ztag { fill: #a8730c; } .poster .zone.l6 .ztag { fill: #4f7a28; }
+.poster .zdesc { font: italic 11px var(--serif); fill: #5c4f47; }
+.poster .sub rect { stroke-width: 1.2; }
+.poster .sub.n8n rect { fill: #fff3f6; stroke: #ea4b71; }
+.poster .sub.api rect { fill: #f7f4f1; stroke: #6b5e55; }
+.poster .sub.pg rect { fill: #eef4fa; stroke: #336791; }
+.poster .sub.ext rect { fill: #fff6ec; stroke: #e08a3c; }
+.poster .sub.repo rect { fill: #fafafa; stroke: #9aa0aa; }
+.poster .slabel { font: 700 8px var(--sans); letter-spacing: .12em; fill: #6b5e55; }
+.poster .sub.n8n .slabel { fill: #c9345a; } .poster .sub.pg .slabel { fill: #336791; } .poster .sub.ext .slabel { fill: #c06a1c; }
+.poster .nl2 { font: 600 10.5px var(--sans); fill: #2b2d33; text-anchor: middle; }
+.poster .ns2 { font: 400 8.6px var(--sans); fill: #80858f; text-anchor: middle; }
+.poster .e { fill: none; stroke-width: 1.8; }
+.poster .e.flow { stroke: #8f95a0; marker-end: url(#arrow); }
+.poster .e.call { stroke: #2a1f19; stroke-dasharray: 6 4; marker-end: url(#arrow-ink); }
+.poster .e.db { stroke: #336791; stroke-dasharray: 2 3; marker-end: url(#arrow-db); }
+.poster .e.esc { stroke: #7c4ddb; stroke-dasharray: 2 3; marker-end: url(#arrow-ai); }
+.poster .e.err { stroke: #b8322a; stroke-dasharray: 6 4; marker-end: url(#arrow-err); }
+.poster .e.nomark { marker-end: none; }
+.poster .pnote { font: italic 10.5px var(--serif); fill: #5c4f47; }
+.poster .pnote.err { fill: #b8322a; }
+.poster .pnote.small { font-size: 9.5px; }
+.poster .hl2 { font: 500 9px var(--sans); fill: #7b808a; }
+.edge-legend { display: flex; flex-wrap: wrap; gap: 2mm 5mm; font: 8pt var(--sans); color: var(--ink-soft); margin-top: 2mm; }
+.edge-legend svg { width: 28px; height: 8px; vertical-align: middle; margin-right: 4px; }
+.edge-legend b { display: inline-block; width: 12px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; border: 1.5px solid; }
+@media print { .poster-sheet .canvas { padding: 2mm; } }
+
+/* ---------- n8n-style canvas ---------- */
+figure {
+  margin: 3mm 0 6mm;
+  break-inside: avoid;
+}
+.canvas {
+  background-color: var(--canvas);
+  background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px);
+  background-size: 14px 14px;
+  border: 1px solid #e3e4e8;
+  border-radius: 8px;
+  padding: 5mm 4mm;
+}
+.canvas svg { display: block; width: 100%; height: auto; }
+figcaption {
+  font: 8.2pt/1.45 var(--sans);
+  color: var(--ink-soft);
+  margin-top: 2mm;
+  padding-left: 3mm;
+  border-left: 2px solid var(--rule);
+}
+figcaption b { color: var(--ink); }
+
+.cv .shape { fill: #fff; stroke: #c4c8d0; stroke-width: 1.5; }
+.cv .nd.new .shape { stroke: var(--accent); stroke-width: 2.6; }
+.cv .nd.ghost .shape { fill: #fafafb; stroke-dasharray: 5 4; }
+.cv .nl { font: 600 12.5px var(--sans); fill: #2b2d33; text-anchor: middle; }
+.cv .ns { font: 400 10px var(--sans); fill: #8a8f99; text-anchor: middle; }
+.cv .hin { fill: #9aa0aa; }
+.cv .hout { fill: #fff; stroke: #9aa0aa; stroke-width: 2; }
+.cv .hl { font: 500 10px var(--sans); fill: #7b808a; }
+.cv .edge { fill: none; stroke: #a2a7b1; stroke-width: 2; marker-end: url(#arrow); }
+.cv .edge.ret { stroke-dasharray: 5 5; stroke: #c9562f; marker-end: url(#arrow-accent); }
+.cv .tag { font: 700 9px var(--sans); fill: var(--accent); letter-spacing: .1em; }
+.cv .note { font: italic 11px var(--serif); fill: #c9562f; text-anchor: middle; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4mm;
+  font: 8pt var(--sans);
+  color: var(--ink-soft);
+  margin-top: 2mm;
+}
+.legend i {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border: 1.5px solid #c4c8d0;
+  border-radius: 3px;
+  background: #fff;
+  vertical-align: -1px;
+  margin-right: 4px;
+}
+.legend i.trig { border-radius: 6px 3px 3px 6px; }
+.legend i.new { border-color: var(--accent); border-width: 2px; }
+.legend i.ghost { border-style: dashed; }
+
+.colophon {
+  font: 8pt/1.5 var(--sans);
+  color: var(--muted);
+  border-top: 1px solid var(--rule);
+  padding-top: 3mm;
+  margin-top: 8mm;
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#a2a7b1"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#c9562f"/>
+    </marker>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.5 2 4 14h7l-1.5 8L20 10h-7z" fill="#ff6d5a"/></symbol>
+    <symbol id="i-webhook" viewBox="0 0 24 24" fill="none" stroke="#c94f7c" stroke-width="2.2" stroke-linecap="round">
+      <circle cx="12" cy="5.5" r="3"/><circle cx="5" cy="18" r="3"/><circle cx="19" cy="18" r="3"/>
+      <path d="M10.5 8.2 6.5 15.4M13.5 8.2l4 7.2M8 18h8"/>
+    </symbol>
+    <symbol id="i-if" viewBox="0 0 24 24" fill="none" stroke="#3f8f5a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.5 12h5c3 0 3-6 6-6h7M7.5 12c3 0 3 6 6 6h7"/><path d="M17.5 3l3 3-3 3M17.5 15l3 3-3 3"/>
+    </symbol>
+    <symbol id="i-switch" viewBox="0 0 24 24" fill="none" stroke="#7a8f2a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.5 12h5M7.5 12c3 0 3-7 6-7h7M7.5 12h13M7.5 12c3 0 3 7 6 7h7"/>
+    </symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="#3a6ee8" stroke-width="2">
+      <circle cx="12" cy="12" r="9.5"/><ellipse cx="12" cy="12" rx="4" ry="9.5"/><path d="M2.5 12h19M4 7h16M4 17h16"/>
+    </symbol>
+    <symbol id="i-telegram" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="12" fill="#29a9eb"/>
+      <path d="M5.4 11.7 17.1 7.2c.6-.2 1 .1.8.9l-2 9.3c-.1.6-.6.8-1.1.5l-3-2.2-1.5 1.4c-.2.2-.3.3-.6.3l.2-3.1 5.6-5c.2-.2 0-.3-.3-.1l-6.9 4.3-3-.9c-.6-.2-.6-.6.1-.9z" fill="#fff"/>
+    </symbol>
+    <symbol id="i-aggregate" viewBox="0 0 24 24" fill="none" stroke="#ff6d5a" stroke-width="2.2" stroke-linecap="round">
+      <path d="M2.5 5c7 0 8 7 12 7M2.5 12h12M2.5 19c7 0 8-7 12-7"/><rect x="15" y="8.5" width="6.5" height="7" rx="1.5" fill="#ff6d5a" stroke="none"/>
+    </symbol>
+    <symbol id="i-db" viewBox="0 0 24 24" fill="none" stroke="#336791" stroke-width="2">
+      <ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>
+    </symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M6.5 19h11a4.5 4.5 0 0 0 .6-9 6.5 6.5 0 0 0-12.4 1.8A3.6 3.6 0 0 0 6.5 19z" fill="#f38020"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24" fill="#6b5e55"><circle cx="12" cy="7.5" r="4.5"/><path d="M3.5 21.5c0-4.7 3.8-8 8.5-8s8.5 3.3 8.5 8z"/></symbol>
+    <symbol id="i-n8n" viewBox="0 0 24 24" fill="none" stroke="#ea4b71" stroke-width="2.2">
+      <circle cx="4" cy="12" r="2.6"/><circle cx="12" cy="12" r="2.6"/><circle cx="20" cy="6" r="2.6"/><circle cx="20" cy="18" r="2.6"/>
+      <path d="M6.6 12h2.8M14.4 11l3.3-3.6M14.4 13l3.3 3.6"/>
+    </symbol>
+    <symbol id="i-api" viewBox="0 0 24 24" fill="none" stroke="#2a1f19" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M8 3.5c-2.5 0-3 1-3 3v2.5c0 1.5-.8 3-2.5 3 1.7 0 2.5 1.5 2.5 3V17.5c0 2 .5 3 3 3M16 3.5c2.5 0 3 1 3 3v2.5c0 1.5.8 3 2.5 3-1.7 0-2.5 1.5-2.5 3V17.5c0 2-.5 3-3 3"/>
+    </symbol>
+    <symbol id="i-dots" viewBox="0 0 24 24" fill="#a2a7b1"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></symbol>
+<marker id="arrow-ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#2a1f19"/></marker>
+    <marker id="arrow-db" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#336791"/></marker>
+    <marker id="arrow-ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#7c4ddb"/></marker>
+    <marker id="arrow-err" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#b8322a"/></marker>
+    <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="#b8322a" stroke-width="2.2" stroke-linecap="round"><circle cx="7.5" cy="12" r="4.5"/><path d="M12 12h10M18 12v4M21 12v3"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="#7c4ddb" stroke-width="2.2" stroke-linejoin="round"><path d="M12 2.5 4 5.5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10v-6z"/><path d="m8.5 12 2.5 2.5 4.5-5" stroke-linecap="round"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24" fill="#d97757"><path d="M12 1.5l2.2 7.3 7.3 2.2-7.3 2.2L12 20.5l-2.2-7.3L2.5 11l7.3-2.2z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="#c98a12" stroke-width="2" stroke-linejoin="round"><path d="M6 2.5h8l5 5v14H6z"/><path d="M14 2.5v5h5M9 13h7M9 17h7"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="#4f7a28" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 6.5V12l3.5 2.5"/></symbol>
+  </defs>
+</svg>
+
+<!-- ============ COVER ============ -->
+<section class="sheet cover">
+  <div class="masthead"><span>Pastry Ops · Field Manual</span><span>Issue 02 · Phase 1 edition · October 2026</span></div>
+
+  <h1>The Order Bot,<br><em>Explained.</em></h1>
+  <p class="dek">How a Telegram message becomes a priced, saved pastry order. Where every piece lives, how to change it, and how to grow it, one node at a time.</p>
+
+  <div class="rule-house">
+    <div><b>n8n</b>orchestrates. It moves messages between services.</div>
+    <div><b>ops-api</b>decides. Prices, validation and idempotency live here.</div>
+    <div><b>Postgres</b>is the truth. The menu and orders are rows.</div>
+    <div><b>The LLM</b>only reads. It never sets a price or a total.</div>
+  </div>
+
+  <div class="toc">
+    <h3>In this issue</h3>
+    <ol>
+      <li><span>01</span><div>The system at a glance<small>The MVP core and the six layers Phase 1 added</small></div></li>
+      <li><span>02</span><div>Where everything lives<small>The repo map and the things outside it</small></div></li>
+      <li><span>03</span><div>Inside the order-intake workflow<small>Node by node, as n8n draws it</small></div></li>
+      <li><span>04</span><div>The menu<small>Viewing, editing, hiding dishes</small></div></li>
+      <li><span>05</span><div>Changing a workflow<small>Two copies and the export habit</small></div></li>
+      <li><span>06</span><div>Changing the API<small>Routes, schemas, rebuilds</small></div></li>
+      <li><span>07</span><div>The /start menu branch<small>How it's built, and how to rebuild it from scratch</small></div></li>
+      <li><span>08</span><div>Operations<small>Daily commands, the tunnel, the danger zone</small></div></li>
+      <li><span>09</span><div>What to build next<small>Phase 1 done. Phase 2 is next</small></div></li>
+      <li><span>10</span><div>Troubleshooting<small>Symptom, cause, fix</small></div></li>
+      <li><span>11</span><div>The whole system<small>Every layer and part on one page</small></div></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 01 AT A GLANCE ============ -->
+<section class="sheet">
+  <p class="kicker">01 · The system</p>
+  <h2>The system at a glance</h2>
+  <p class="standfirst">Four containers run on your laptop under Docker Compose. One of them opens a public door so Telegram can reach in.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv" viewBox="0 0 790 240" role="img" aria-label="Customer to Telegram to Cloudflare tunnel to n8n to ops-api to Postgres, with replies going from n8n back to Telegram">
+        <path class="edge" d="M113 78 H156"/>
+        <path class="edge" d="M243 78 H286"/>
+        <path class="edge" d="M373 78 H426"/>
+        <path class="edge" d="M513 78 H566"/>
+        <path class="edge" d="M653 78 H696"/>
+        <path class="edge" d="M610 20 V34"/>
+        <text class="note" x="610" y="14">Claude API</text>
+        <path class="edge ret" d="M470 166 C470 210, 200 210, 200 170"/>
+        <text class="note" x="335" y="230">replies go straight to Telegram's Bot API (sendMessage)</text>
+
+        <g class="nd" transform="translate(32,40)">
+          <path class="shape" d="M38 0H66a10 10 0 0 1 10 10v56a10 10 0 0 1-10 10H38a38 38 0 0 1 0-76z"/>
+          <circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-user" x="22" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Customer</text><text class="ns" x="38" y="110">Telegram app</text>
+        </g>
+        <g class="nd" transform="translate(162,40)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-telegram" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Telegram</text><text class="ns" x="38" y="110">@Pastryandmiscbot</text>
+        </g>
+        <g class="nd" transform="translate(292,40)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-cloud" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">cloudflared</text><text class="ns" x="38" y="110">*.trycloudflare.com</text>
+        </g>
+        <g class="nd" transform="translate(432,40)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-n8n" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">n8n</text><text class="ns" x="38" y="110">localhost:5678</text>
+        </g>
+        <g class="nd" transform="translate(572,40)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-api" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">ops-api</text><text class="ns" x="38" y="110">localhost:3002</text>
+        </g>
+        <g class="nd" transform="translate(702,40)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <use href="#i-db" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Postgres</text><text class="ns" x="38" y="110">pastry_ops</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>The whole stack, drawn like an n8n canvas.</b> Messages travel left to right. n8n doesn't send replies back through the tunnel. It calls Telegram's API directly (the dashed line).</figcaption>
+  </figure>
+
+  <div class="cols">
+    <p class="dropcap">A customer types <i>"2 tres leches for tomorrow at 3pm"</i> into Telegram. Telegram's servers wrap that text in a JSON <b>update</b> and POST it to the webhook URL you registered. That URL belongs to a Cloudflare quick tunnel, which forwards the request to the n8n container on your laptop.</p>
+    <p>n8n runs the <b>Order intake</b> workflow. It checks that the request really came from Telegram, claims the update so a retry can't be processed twice, and sends commands like <code>/start</code> to the menu branch. Everything else goes to ops-api, which loads the live menu, asks <b>Claude</b> to turn the sentence into structured items, and checks the result against the bakery's rules in code. If the draft passes, ops-api prices it from Postgres and saves it in one transaction. n8n then confirms the order or asks a clarifying question through the Telegram Bot API.</p>
+    <div class="pull">The LLM turns words into item IDs. Code turns item IDs into money.</div>
+    <h4>The life of one message</h4>
+    <ol>
+      <li>Customer sends a message to <b>@Pastryandmiscbot</b>.</li>
+      <li>Telegram POSTs the update, with your secret token in a header.</li>
+      <li>cloudflared forwards it to <code>n8n:5678/webhook/order-intake</code>.</li>
+      <li>n8n verifies the secret, then claims <code>update_id</code> (<code>POST /updates/claim</code>). A retry stops here.</li>
+      <li><code>/start</code> and <code>/menu</code> get the menu. Anything else goes to <code>/llm/extract-order</code>.</li>
+      <li>Claude Haiku 5.5 extracts the order. Code checks it, and Sonnet 5.5 steps in only if Haiku fails.</li>
+      <li><code>/orders</code> prices the order from the database and saves it once, inside one transaction.</li>
+      <li>n8n confirms, asks a question, or apologizes if something broke.</li>
+    </ol>
+  </div>
+
+  <h3>The four services</h3>
+  <table>
+    <thead><tr><th>Service</th><th>Container</th><th>From your laptop</th><th>From other containers</th><th>Job</th></tr></thead>
+    <tbody>
+      <tr><td>postgres</td><td><code>pastry-postgres</code></td><td><code>localhost:5432</code></td><td><code>postgres:5432</code></td><td>Database <code>pastry_ops</code>. Holds the menu, customers and orders, plus n8n's own workflows, credentials and execution history.</td></tr>
+      <tr><td>ops-api</td><td><code>pastry-ops-api</code></td><td><code>localhost:3002</code></td><td><code>ops-api:3001</code></td><td>Business rules: menu, pricing, validation, idempotency, the Claude gateway, cost logging and reports. Every route except <code>/health</code> needs the <code>x-api-key</code> header.</td></tr>
+      <tr><td>n8n</td><td><code>pastry-n8n</code></td><td><code>localhost:5678</code></td><td><code>n8n:5678</code></td><td>Runs the workflows and holds the Telegram credential, encrypted with <code>N8N_ENCRYPTION_KEY</code>.</td></tr>
+      <tr><td>cloudflared</td><td><code>pastry-cloudflared</code></td><td>prints a public URL</td><td>—</td><td>Public HTTPS URL that forwards to n8n. The URL changes every time it restarts.</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <h4>Two addresses for one API</h4>
+    <p>Inside Docker, containers reach each other by service name, so n8n calls <code>http://ops-api:3001</code>. From your browser, the same API is at <code>http://localhost:3002</code>, because Grafana already uses port 3001 on this laptop. <code>API_PORT</code> in <code>.env</code> only changes the laptop-side port.</p>
+  </div>
+</section>
+
+
+<!-- ============ 01b PHASE 1 LAYERS ============ -->
+<section class="sheet">
+  <p class="kicker">01 · Phase 1</p>
+  <h2>Six layers on top of the core</h2>
+  <p class="standfirst">The MVP proved that a message could become an order. Phase 1 wrapped that core in the layers that make it something a business can rely on. The core itself didn't change shape.</p>
+
+  <div class="layers">
+    <div class="layer">
+      <div><span class="tagline">Layer 6 · Operations</span><b>Daily prep list</b></div>
+      <div>At 6am, n8n fetches today's orders, totalled per dish, and sends them to the owner on Telegram. The API builds the text, and the workflow only schedules and delivers it.</div>
+      <div class="where">daily-prep-list.json<br>GET /reports/prep-list</div>
+    </div>
+    <div class="layer">
+      <div><span class="tagline">Layer 5 · Quality</span><b>Evals and model choice</b></div>
+      <div>30 test messages: normal, Spanish/English, missing details, off-menu, ambiguous, policy limits and 5 prompt injections. Each model mode is scored on accuracy and cost per order. The result is <b>100% accuracy at $0.0002 per order</b> on Haiku 5.5, which ADR 001 records.</div>
+      <div class="where">evals/cases.jsonl<br>evals/run.ts · results.md<br>docs/decisions/001-…</div>
+    </div>
+    <div class="layer">
+      <div><span class="tagline">Layer 4 · Observability</span><b>LLM cost log</b></div>
+      <div>Every Claude call writes one row with the model, tokens, cost in USD, latency and outcome (ok, invalid, escalated or error). A report endpoint sums the last 7 days.</div>
+      <div class="where">table llm_calls<br>GET /reports/llm-usage</div>
+    </div>
+    <div class="layer">
+      <div><span class="tagline">Layer 3 · AI</span><b>Grounded extraction</b></div>
+      <div>Claude structured outputs (a Zod schema) and the live menu in the prompt. The model maps words to <code>item_id</code>s and never sees a price. <b>Rules in code</b> handle off-menu items, ambiguity, quantities from 1 to 100, delivery between 08:00 and 18:00, at least 2 hours' notice and at most 14 days ahead. Haiku runs first, and Sonnet only steps in when code detects a model fault.</div>
+      <div class="where">src/llm/extract.ts<br>src/rules.ts<br>POST /llm/extract-order</div>
+    </div>
+    <div class="layer">
+      <div><span class="tagline">Layer 2 · Reliability</span><b>Exactly-once and no silence</b></div>
+      <div>Each Telegram update is claimed once. Orders use an idempotency key and are written in one database transaction. If the extraction or order call fails, the customer gets an apology instead of no reply.</div>
+      <div class="where">table processed_updates<br>POST /updates/claim<br>n8n error outputs</div>
+    </div>
+    <div class="layer">
+      <div><span class="tagline">Layer 1 · Security</span><b>Two locked doors</b></div>
+      <div>Telegram must present the secret token. n8n must present <code>OPS_API_KEY</code> to the API, and anything else gets a 401. Customer text is wrapped and treated as data, so injection attempts can't change rules or prices.</div>
+      <div class="where">Verify Telegram update<br>x-api-key hook in server.ts</div>
+    </div>
+    <div class="layer core">
+      <div><span class="tagline">MVP core (unchanged)</span><b>Message → order</b></div>
+      <div>Telegram webhook → n8n → ops-api → Postgres. Prices come from the menu table, totals are computed in code, and Postgres is the source of truth.</div>
+      <div class="where">docker-compose.yml<br>db/001_init.sql<br>POST /orders</div>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="box">
+      <h4>Why the layers sit where they do</h4>
+      <p>n8n kept the jobs it's good at: triggers, routing, retries, replies and schedules. Anything that needs a test, a transaction or a secret went into ops-api. That's why dedupe is an API call and not an n8n Postgres node: the rule lives in one place, with one credential, and can be tested.</p>
+    </div>
+    <div class="box where">
+      <h4>Mapped to the job description</h4>
+      <ul>
+        <li><b>n8n in production:</b> two active workflows with error branches.</li>
+        <li><b>Backend + webhooks:</b> Fastify, Zod, an API key and idempotent POSTs.</li>
+        <li><b>Model selection by cost and quality:</b> the eval table and ADR 001.</li>
+        <li><b>Fewer hallucinations:</b> grounding, a schema, code rules and injection tests.</li>
+        <li><b>PostgreSQL:</b> transactions, migrations and the cost log.</li>
+        <li><b>Documentation:</b> this manual, the ADR and the eval report.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 WHERE EVERYTHING LIVES ============ -->
+<section class="sheet">
+  <p class="kicker">02 · The map</p>
+  <h2>Where everything lives</h2>
+  <p class="standfirst">Some of the project is files in the repo. The rest only exists inside running containers, so you need to know which is which before you change anything.</p>
+
+  <h3>The repository</h3>
+  <div class="tree">
+    <div><b class="d">jobappproj/</b><span></span></div>
+    <div>├─ docker-compose.yml<span>Defines the four services, their ports, environment variables and volumes.</span></div>
+    <div>├─ .env<span>Your real secrets and settings. Git ignores it. Never commit it.</span></div>
+    <div>├─ .env.example<span>The committed template. Every variable is listed here with a placeholder value.</span></div>
+    <div>├─ claude.md<span>The three-phase roadmap and working rules (private).</span></div>
+    <div>├─ README.md · overview.html<span>Project write-up, including Phase 1 results.</span></div>
+    <div>├─ instructions_docs.html<span>This manual.</span></div>
+    <div><b class="d">├─ db/</b><span>Runs in name order, only when the database is empty.</span></div>
+    <div>│  ├─ 001_init.sql<span>Tables and the starter menu.</span></div>
+    <div>│  └─ 002_phase1.sql<span>The <code>llm_calls</code> table and indexes. Safe to re-run.</span></div>
+    <div><b class="d">├─ n8n/workflows/</b><span></span></div>
+    <div>│  ├─ order-intake.json<span>Live copy of "Order intake" (ID <code>pastryOrderIntake</code>), 14 nodes.</span></div>
+    <div>│  └─ daily-prep-list.json<span>"Daily prep list" (ID <code>pastryDailyPrepList</code>), 6am.</span></div>
+    <div><b class="d">├─ evals/</b><span></span></div>
+    <div>│  ├─ cases.jsonl<span>30 test messages with their expected results.</span></div>
+    <div>│  ├─ run.ts<span>Scores three model modes on accuracy and cost.</span></div>
+    <div>│  └─ results.md<span>The latest scorecard.</span></div>
+    <div><b class="d">├─ docs/decisions/</b><span></span></div>
+    <div>│  └─ 001-model-choice.md<span>Why Haiku is the default and Sonnet the fallback.</span></div>
+    <div><b class="d">└─ ops-api/</b><span></span></div>
+    <div>   ├─ src/server.ts<span>Routes, auth hook, SQL.</span></div>
+    <div>   ├─ src/llm/extract.ts<span>Claude call, schema, prompt, model routing, cost.</span></div>
+    <div>   ├─ src/rules.ts<span>Business rules: hours, lead time, quantities, menu checks.</span></div>
+    <div>   ├─ package.json<span>Fastify, pg, Zod 4, Anthropic SDK, dotenv.</span></div>
+    <div>   └─ Dockerfile · .dockerignore<span>node:20-alpine, runs TypeScript with tsx.</span></div>
+  </div>
+
+  <div class="box where">
+    <h4>Things that live outside the repo</h4>
+    <ul>
+      <li><b>The live workflow</b> is stored in n8n's tables inside Postgres. The JSON file in the repo is only a copy. Editing the file does nothing until you import it.</li>
+      <li><b>The Telegram credential</b> is "Pastry Telegram bot", stored encrypted in n8n.</li>
+      <li><b>Menu rows, customers and orders</b> are in the <code>postgres_data</code> Docker volume.</li>
+      <li><b>n8n settings</b> are in the <code>n8n_data</code> volume.</li>
+      <li><b>The public URL</b> only shows up in the cloudflared logs, and it changes on every restart.</li>
+      <li><b>The Telegram webhook registration</b> is stored on Telegram's servers. Check it with <code>getWebhookInfo</code>.</li>
+    </ul>
+  </div>
+
+  <h3>"I want to change…" — quick index</h3>
+  <table>
+    <thead><tr><th>I want to change…</th><th>Go to</th><th>Then</th></tr></thead>
+    <tbody>
+      <tr><td>A price, dish name, or what's on sale</td><td>The <code>menu_items</code> table in Postgres (§04)</td><td>Nothing. The next message uses it.</td></tr>
+      <tr><td>The starter menu for a fresh install</td><td><span class="path">db/001_init.sql</span></td><td>Only takes effect on an empty database.</td></tr>
+      <tr><td>What the bot says or how messages route</td><td>The n8n editor, workflow "Order intake" (§05)</td><td>Save, then Download to <span class="path">n8n/workflows/</span> and commit.</td></tr>
+      <tr><td>How orders are validated or priced</td><td><span class="path">ops-api/src/server.ts</span> (§06)</td><td><code>docker compose up -d --build ops-api</code></td></tr>
+      <tr><td>How text becomes an order (the LLM)</td><td>The prompt and schema in <span class="path">src/llm/extract.ts</span></td><td>Run the eval, then rebuild ops-api.</td></tr>
+      <tr><td>Opening hours, lead time, max quantity</td><td>The constants at the top of <span class="path">src/rules.ts</span></td><td>Run the eval, then rebuild ops-api.</td></tr>
+      <tr><td>Which model runs</td><td><code>ANTHROPIC_MODEL_FAST</code> / <code>_STRONG</code> in <span class="path">.env</span></td><td>Run the eval with the new model first. Then <code>docker compose up -d</code>.</td></tr>
+      <tr><td>Secrets, keys, ports, the model</td><td><span class="path">.env</span> (and <span class="path">.env.example</span> for new variable names)</td><td><code>docker compose up -d</code> to recreate the affected containers.</td></tr>
+      <tr><td>Services, ports, volumes, n8n settings</td><td><span class="path">docker-compose.yml</span></td><td><code>docker compose up -d</code></td></tr>
+      <tr><td>The database tables</td><td>A new numbered file in <span class="path">db/</span>, applied once with psql</td><td>Fresh installs pick it up automatically.</td></tr>
+      <tr><td>The bot's name, picture or command list</td><td>@BotFather in Telegram</td><td>Takes effect immediately.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 03 ORDER INTAKE ============ -->
+<section class="sheet">
+  <p class="kicker">03 · The workflow</p>
+  <h2>Inside the order-intake workflow</h2>
+  <p class="standfirst">Fourteen nodes: gatekeeping first, then a menu branch and an order branch. This is the "Order intake" workflow as it appears in the n8n editor, split into two parts to fit the page.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv" viewBox="0 0 790 200" role="img" aria-label="Gatekeeping: Telegram webhook, Verify Telegram update, Claim update, First delivery?, Route command">
+        <path class="edge" d="M103 78 H166"/>
+        <path class="edge" d="M253 66 C285 66, 285 78, 316 78"/>
+        <path class="edge" d="M403 78 H466"/>
+        <path class="edge" d="M553 66 C585 66, 585 78, 616 78"/>
+        <g class="nd" transform="translate(22,40)">
+          <path class="shape" d="M38 0H66a10 10 0 0 1 10 10v56a10 10 0 0 1-10 10H38a38 38 0 0 1 0-76z"/>
+          <circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-bolt" x="-18" y="30" width="16" height="16"/>
+          <use href="#i-webhook" x="22" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Telegram webhook</text><text class="ns" x="38" y="110">POST: order-intake</text>
+        </g>
+        <g class="nd" transform="translate(172,40)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <text class="hl" x="84" y="20">true</text><text class="hl" x="84" y="44">false</text>
+          <use href="#i-if" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Verify Telegram</text><text class="nl" x="38" y="110">update</text>
+        </g>
+        <g class="nd new" transform="translate(322,40)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-globe" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Claim update</text><text class="ns" x="38" y="110">POST: /updates/claim</text>
+        </g>
+        <g class="nd new" transform="translate(472,40)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <text class="hl" x="84" y="20">true</text><text class="hl" x="84" y="44">false</text>
+          <use href="#i-if" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">First delivery?</text><text class="ns" x="38" y="110">first is true</text>
+        </g>
+        <g class="nd new" transform="translate(622,40)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <text class="hl" x="84" y="20">menu ↗</text><text class="hl" x="84" y="44">order ↘</text>
+          <use href="#i-switch" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Route command</text><text class="ns" x="38" y="110">Switch · regex</text>
+        </g>
+        <text class="note" x="395" y="185">false outputs end the run: not from Telegram, no text, or an update already handled</text>
+      </svg>
+    </div>
+    <figcaption><b>Part 1, gatekeeping.</b> Three checks run before anything costs money: the request really came from Telegram, it's the first delivery of this update, and it isn't a command.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv" viewBox="0 0 790 520" role="img" aria-label="Branches: menu branch Get menu, Combine menu items, Send menu; order branch Extract order with LLM, Validate extracted order, Create order via API, Send confirmation, Ask clarifying question, and Send apology on errors">
+        <path class="edge" d="M103 186 C140 186, 140 68, 176 68"/>
+        <path class="edge" d="M103 210 C140 210, 140 228, 176 228"/>
+        <path class="edge" d="M263 68 H336"/>
+        <path class="edge" d="M423 68 H496"/>
+        <path class="edge" d="M263 216 H336"/>
+        <path class="edge" d="M263 240 C300 240, 290 438, 340 438 H656"/>
+        <path class="edge" d="M423 216 C460 216, 460 198, 496 198"/>
+        <path class="edge" d="M423 240 C465 240, 455 338, 496 338"/>
+        <path class="edge" d="M583 186 C620 186, 620 198, 656 198"/>
+        <path class="edge" d="M583 210 C640 210, 610 438, 656 438"/>
+
+        <g class="nd ghost" transform="translate(22,160)">
+          <rect class="shape" width="76" height="76" rx="10"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <use href="#i-switch" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Route command</text><text class="ns" x="38" y="110">from part 1</text>
+        </g>
+        <g class="nd new" transform="translate(182,30)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-globe" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Get menu</text><text class="ns" x="38" y="110">GET: /menu</text>
+        </g>
+        <g class="nd new" transform="translate(342,30)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-aggregate" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Combine menu items</text><text class="ns" x="38" y="110">Aggregate</text>
+        </g>
+        <g class="nd new" transform="translate(502,30)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <use href="#i-telegram" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Send menu</text><text class="ns" x="38" y="110">send: message</text>
+        </g>
+        <g class="nd new" transform="translate(182,190)">
+          <text class="tag" x="0" y="-8">NOW CLAUDE</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <text class="hl" x="84" y="20">success</text><text class="hl" x="84" y="62">error</text>
+          <use href="#i-globe" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Extract order</text><text class="nl" x="38" y="110">with LLM</text>
+        </g>
+        <g class="nd" transform="translate(342,190)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <text class="hl" x="84" y="20">true</text><text class="hl" x="84" y="62">false</text>
+          <use href="#i-if" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Validate</text><text class="nl" x="38" y="110">extracted order</text>
+        </g>
+        <g class="nd" transform="translate(502,160)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <use href="#i-globe" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Create order</text><text class="nl" x="38" y="110">via API</text>
+        </g>
+        <g class="nd" transform="translate(662,160)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <use href="#i-telegram" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Send</text><text class="nl" x="38" y="110">confirmation</text>
+        </g>
+        <g class="nd" transform="translate(502,300)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <use href="#i-telegram" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Ask clarifying</text><text class="nl" x="38" y="110">question</text>
+        </g>
+        <g class="nd new" transform="translate(662,400)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <use href="#i-telegram" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Send apology</text><text class="ns" x="38" y="110">both error outputs</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>Part 2, the branches.</b> Menu requests never reach the LLM. In the order branch, both API calls have an <b>error output</b> (n8n setting <i>On Error → Continue (using error output)</i>) that goes to one apology node. The customer always gets a reply.</figcaption>
+    <div class="legend"><span><i class="trig"></i>Trigger node</span><span><i></i>Unchanged from the MVP</span><span><i class="new"></i>Added or upgraded in Phase 1</span><span><i class="ghost"></i>Shown in the other part</span></div>
+  </figure>
+
+  <h3>Node by node</h3>
+  <table>
+    <thead><tr><th style="width:22%">Node</th><th style="width:14%">Type</th><th>What it does</th><th style="width:28%">Watch out for</th></tr></thead>
+    <tbody>
+      <tr><td>Telegram webhook</td><td>Webhook (trigger)</td><td>Listens on <code>POST /webhook/order-intake</code> and responds 200 immediately.</td><td>The Telegram JSON is under <code>body</code>, and headers are under <code>headers</code>.</td></tr>
+      <tr><td>Verify Telegram update</td><td>IF</td><td>The secret header must match <code>TELEGRAM_WEBHOOK_SECRET</code>, and the message must have text.</td><td>Stickers, photos and edited messages stop here.</td></tr>
+      <tr><td>Claim update</td><td>HTTP Request</td><td><code>POST /updates/claim</code> inserts <code>telegram:&lt;update_id&gt;</code> into <code>processed_updates</code>.</td><td>Returns <code>first: false</code> for any repeat.</td></tr>
+      <tr><td>First delivery?</td><td>IF</td><td>Continues only when <code>first</code> is true.</td><td>Replayed updates end here silently, as they should.</td></tr>
+      <tr><td>Route command</td><td>Switch</td><td>A regex (<code>^(/start|/menu|menu)</code>, case-insensitive) sends commands to the <i>menu</i> output and everything else to the <i>order</i> fallback.</td><td>Add new commands as new rules.</td></tr>
+      <tr><td>Get menu → Combine menu items → Send menu</td><td>HTTP · Aggregate · Telegram</td><td>Fetches the active dishes, combines them into one item, and sends one message.</td><td>Without Aggregate, the customer would get one message per dish.</td></tr>
+      <tr><td>Extract order with LLM</td><td>HTTP Request</td><td>Sends the message text to <code>/llm/extract-order</code>, which loads the menu, calls Claude, applies the rules and logs the cost.</td><td>Has an error output. A 502 or timeout goes to the apology.</td></tr>
+      <tr><td>Validate extracted order</td><td>IF</td><td>Routes on <code>valid</code>, which the <b>API</b> decides, not the model.</td><td><code>violations</code> in the output shows why an order was rejected.</td></tr>
+      <tr><td>Create order via API</td><td>HTTP Request</td><td><code>POST /orders</code> with key <code>tg-&lt;update_id&gt;</code> and customer <code>tg:&lt;chat id&gt;</code>.</td><td>Has an error output that goes to the apology.</td></tr>
+      <tr><td>Send confirmation</td><td>Telegram</td><td>Sends the order number, the line items, the total in RD$, the delivery time and the address.</td><td>Uses the "Pastry Telegram bot" credential.</td></tr>
+      <tr><td>Ask clarifying question</td><td>Telegram</td><td>Sends <code>clarification</code>. Policy messages (hours, off-menu) come from code. Missing-detail questions come from Claude, in the customer's language.</td><td></td></tr>
+      <tr><td>Send apology</td><td>Telegram</td><td>"Sorry, something went wrong on our side…"</td><td>The failed execution is still marked as an error in Executions.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="cols">
+    <div class="box">
+      <h4>Reading n8n expressions</h4>
+      <p>Anything inside <code>{{ }}</code> is JavaScript. <code>$json</code> is the data coming <i>into</i> the current node. <code>$('Telegram webhook').first()</code> reaches back to an earlier node <b>by its display name</b>. That's why the chat ID and <code>update_id</code> are always read from the trigger node, whatever ran in between.</p>
+    </div>
+    <div class="box warn">
+      <h4>Renaming a node breaks things</h4>
+      <p>Expressions find other nodes by name. If you rename "Telegram webhook", every <code>$('Telegram webhook')</code> in later nodes stops working. Recent n8n versions offer to update those references when you rename. Check every node anyway.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 04 MENU ============ -->
+<section class="sheet">
+  <p class="kicker">04 · The menu</p>
+  <h2>The menu is a table</h2>
+  <p class="standfirst">No config file holds the menu, and nothing is hardcoded in the workflow. The menu lives in Postgres, and every message reads it fresh.</p>
+
+  <div class="cols">
+    <p class="dropcap">Your dishes live in the <code>menu_items</code> table of the <code>pastry_ops</code> database. Two parts of the code read it. <code>GET /menu</code> returns the active dishes for the <code>/start</code> reply. <code>POST /llm/extract-order</code> loads them for Claude's prompt (names and IDs only, never prices). <code>POST /orders</code> looks up prices by ID when it computes a total. Because both read the table on every request, <b>a change takes effect on the next message</b>. You don't need to restart, rebuild or re-import anything.</p>
+    <p>The six starter dishes came from the end of <span class="path">db/001_init.sql</span>. That file only runs the first time Postgres starts with an empty volume. Editing it now won't change your running menu. It only changes what a <i>fresh</i> install starts with.</p>
+
+    <h4>The columns</h4>
+    <table>
+      <thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>id</td><td>Assigned automatically. The LLM must answer with these IDs, and orders reference them.</td></tr>
+        <tr><td>item_name</td><td>What customers see and what the LLM matches against.</td></tr>
+        <tr><td>category</td><td>A free-text label: cake, savory, bread…</td></tr>
+        <tr><td>price</td><td>In RD$, with two decimals.</td></tr>
+        <tr><td>is_active</td><td>Set to false to hide a dish without deleting it.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>View the menu</h3>
+    <p><b>From the API</b>, which is what the bot sees. The API requires the key, so a plain browser tab gets a 401:</p>
+    <div class="cmd">set -a; source .env; set +a
+curl -H "x-api-key: $OPS_API_KEY" localhost:3002/menu</div>
+    <p><b>In Telegram:</b> send <code>/menu</code> to the bot.</p>
+    <p><b>In n8n:</b> open any run under <i>Executions</i> and click the <i>Load menu</i> node to see its output.</p>
+    <p><b>In the database</b>, which also shows hidden dishes:</p>
+    <div class="cmd"><span class="c"># open a SQL prompt (\q to quit)</span>
+docker compose exec postgres psql -U pastry -d pastry_ops
+
+SELECT id, item_name, category, price, is_active
+FROM menu_items ORDER BY id;</div>
+
+    <h3>Change the menu</h3>
+    <p>Run these from the same SQL prompt.</p>
+    <div class="cmd"><span class="c">-- add a dish</span>
+INSERT INTO menu_items (item_name, category, price)
+VALUES ('Flan de caramelo', 'dessert', 250.00);
+
+<span class="c">-- change a price</span>
+UPDATE menu_items SET price = 700 WHERE id = 1;
+
+<span class="c">-- take a dish off the menu</span>
+UPDATE menu_items SET is_active = false WHERE id = 5;</div>
+
+    <div class="box warn">
+      <h4>Hide dishes, don't delete them</h4>
+      <p>Each line of an order points at a <code>menu_items.id</code>. Once a dish has been ordered, Postgres refuses to delete it, and that's intentional. Set <code>is_active = false</code> instead.</p>
+    </div>
+    <div class="box">
+      <h4>Old orders keep old prices</h4>
+      <p>When an order is created, each line copies the price at that moment into <code>order_items.unit_price</code>. A price change only affects new orders.</p>
+    </div>
+    <p>Want a fresh install to start with your real menu? Make the same change to the <code>INSERT</code> at the bottom of <span class="path">db/001_init.sql</span> and commit it. The course plan moves this into <span class="path">db/seed.sql</span> later.</p>
+  </div>
+</section>
+
+<!-- ============ 05 CHANGING A WORKFLOW ============ -->
+<section class="sheet">
+  <p class="kicker">05 · Editing n8n</p>
+  <h2>Changing a workflow</h2>
+  <p class="standfirst">Every workflow exists twice: the live copy n8n runs, and the JSON file git remembers. Edit the live copy, then export it to the file.</p>
+
+  <div class="cols">
+    <p class="dropcap">n8n stores workflows in its own tables inside Postgres. Telegram only ever reaches that live copy. The JSON in <span class="path">n8n/workflows/</span> is a backup that you can put in version control and show to an interviewer. The two don't sync on their own, so make it a habit: <b>edit in the editor, then download into the repo and commit</b>.</p>
+
+    <h3>Method A — the editor (use this one)</h3>
+    <ol class="steps">
+      <li><b>Open n8n.</b> Go to <code>http://localhost:5678</code> (or the tunnel URL) and log in with your owner account.</li>
+      <li><b>Open the workflow.</b> Click <i>Overview → Workflows → Order intake</i>.</li>
+      <li><b>Make the change.</b> Double-click a node to edit it, drag from an output dot to add a connection, and hover over a connection then click the bin icon to delete it. Press <i>Tab</i> or click <i>+</i> to add a node.</li>
+      <li><b>Save</b> with Ctrl+S. The workflow is already active, so saving puts the change live immediately.</li>
+      <li><b>Test it for real.</b> Message the bot, then open <i>Executions</i> (top tab). Every run is listed there. Click one to see which path it took and the data at each node. A red node is where it failed.</li>
+      <li><b>Export.</b> Click <i>⋯</i> (top right) → <i>Download</i>, and save it over <span class="path">n8n/workflows/order-intake.json</span>.</li>
+      <li><b>Commit.</b> Run <code>git diff</code> to review the change, then commit. The file contains the credential's name and ID but never the token itself.</li>
+    </ol>
+
+    <h3>Testing without your phone</h3>
+    <p>Telegram only knows the <b>production</b> URL (<code>/webhook/…</code>). The editor's <i>Test workflow</i> button listens on a separate <b>test</b> URL (<code>/webhook-test/…</code>) that Telegram never calls. To test inside the editor, open a past execution, copy the <i>Telegram webhook</i> output, go back to the editor, and use <b>Pin data</b> on the trigger node to paste it there. <i>Test workflow</i> then reruns the flow on that real message as many times as you like. Unpin the data before you rely on live traffic again.</p>
+
+    <h3>Method B — load the file into n8n</h3>
+    <p>Use this to restore from git or to set up a new machine.</p>
+    <ul>
+      <li><b>Editor:</b> <i>Workflows → Create → ⋯ → Import from File</i>. This makes a <i>new</i> workflow with a new ID. Deactivate the old one, because two active workflows can't share the webhook path.</li>
+      <li><b>Command line</b> (keeps the ID <code>pastryOrderIntake</code>): copy the file into the container, wrap it in a JSON array (the CLI requires an array), run <code>n8n import:workflow</code>, then <code class="wrap">n8n update:workflow --id=pastryOrderIntake --active=true</code>, then <code>docker compose restart n8n</code>. This is how the MVP was first loaded.</li>
+    </ul>
+
+    <div class="box warn">
+      <h4>Changes that need extra steps</h4>
+      <ul>
+        <li><b>The webhook path</b> on the trigger node: register the new URL with Telegram again (§08).</li>
+        <li><b>Deactivating</b> the workflow: Telegram's requests get a 404 until you activate it again.</li>
+        <li><b>Calling the API</b>: use <code>http://ops-api:3001</code>. <code>localhost</code> inside n8n means the n8n container itself.</li>
+        <li><b>New credentials</b> go in <i>Overview → Credentials</i>. They're encrypted with <code>N8N_ENCRYPTION_KEY</code>.</li>
+      </ul>
+    </div>
+    <div class="box where">
+      <h4>Environment variables in nodes</h4>
+      <p>n8n can read any variable from <span class="path">.env</span> as <code>$env.NAME</code>. That's how the Verify node compares the secret. Edit <span class="path">.env</span>, then run <code>docker compose up -d n8n</code>. Store secrets you use often as credentials instead.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 06 CHANGING THE API ============ -->
+<section class="sheet">
+  <p class="kicker">06 · The backend</p>
+  <h2>Changing the API</h2>
+  <p class="standfirst">Every rule that touches money lives in one TypeScript file. Edit it, rebuild one container, and test with the browser or curl.</p>
+
+  <h3>The three files of ops-api</h3>
+  <table>
+    <thead><tr><th style="width:24%">File</th><th style="width:30%">Piece</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="2">src/server.ts</td><td>Setup, auth hook, error handler</td><td>Refuses to start without <code>OPS_API_KEY</code>. Every route except <code>/health</code> needs <code>x-api-key</code>. Zod errors become 400s with a list of issues.</td></tr>
+      <tr><td>Routes</td><td><code>GET /health</code> · <code>GET /menu</code> · <code>POST /updates/claim</code> · <code>POST /llm/extract-order</code> · <code>POST /orders</code> (idempotent, one transaction) · <code>GET /orders/:id</code> · <code>POST /orders/:id/status</code> (a fixed set of statuses) · <code>GET /reports/prep-list</code> · <code>GET /reports/llm-usage</code></td></tr>
+      <tr><td rowspan="3">src/llm/extract.ts</td><td>Schema and prompt</td><td>A Zod schema passed to Claude structured outputs. The prompt holds the menu (IDs and names), the local time, and the rule that customer text is data.</td></tr>
+      <tr><td>Routing</td><td>Tries <code>ANTHROPIC_MODEL_FAST</code>, then <code>ANTHROPIC_MODEL_STRONG</code> on an API error, a refusal, an unknown ID, a malformed time, or low confidence on a draft that would otherwise be accepted.</td></tr>
+      <tr><td>Cost</td><td><code>PRICES_PER_MTOK</code>. Update it when prices change.</td></tr>
+      <tr><td>src/rules.ts</td><td>Business rules</td><td><code>OPEN_HOUR</code> 8, <code>CLOSE_HOUR</code> 18, <code>MIN_LEAD_HOURS</code> 2, <code>MAX_DAYS_AHEAD</code> 14, <code>MAX_QUANTITY</code> 100, in Santo Domingo time. Produces the clarification text for policy violations.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="cols">
+    <h3>The edit loop</h3>
+    <div class="cmd"><span class="c"># 1. type-check</span>
+cd ops-api &amp;&amp; npx tsc --noEmit &amp;&amp; cd ..
+
+<span class="c"># 2. rebuild and restart only the API</span>
+docker compose up -d --build ops-api
+
+<span class="c"># 3. watch it boot / see errors</span>
+docker compose logs -f ops-api
+
+<span class="c"># 4. poke it</span>
+curl localhost:3002/health
+
+<span class="c"># 5. after any prompt, rule or model change</span>
+cd ops-api &amp;&amp; node --env-file=../.env \
+  --import tsx ../evals/run.ts</div>
+    <p>n8n doesn't need restarting. Its next HTTP call reaches the new API.</p>
+
+    <h3>The extraction contract</h3>
+    <p>The workflow depends on <code>/llm/extract-order</code> returning this shape. If you change it, update the nodes that read it.</p>
+    <table>
+      <thead><tr><th>Field</th><th>Used by</th></tr></thead>
+      <tbody>
+        <tr><td><code>valid</code> (boolean)</td><td>Validate extracted order</td></tr>
+        <tr><td><code>items[]</code> of <code>{item_id, quantity}</code></td><td>Create order via API</td></tr>
+        <tr><td><code>delivery_address</code>, <code>delivery_at</code> (local <code>YYYY-MM-DDTHH:mm</code>)</td><td>Create order via API</td></tr>
+        <tr><td><code>customer_name</code>, <code>customer_phone</code>, <code>notes</code></td><td>Optional. Defaults are applied in n8n.</td></tr>
+        <tr><td><code>clarification</code></td><td>Ask clarifying question</td></tr>
+        <tr><td><code>violations</code>, <code>model</code>, <code>escalated</code></td><td>Debugging in Executions</td></tr>
+      </tbody>
+    </table>
+    <p>The prices the customer pays never pass through the model. Even a perfectly successful prompt injection can only pick menu IDs, and code still checks those.</p>
+
+    <div class="box">
+      <h4>Running outside Docker</h4>
+      <p><code>npm run dev</code> in <span class="path">ops-api/</span> gives hot reload, but it reads <span class="path">ops-api/.env</span>. Its <code>DATABASE_URL</code> must point at <code>localhost:5432</code>, because the host name <code>postgres</code> only exists inside Docker. Stop the container first, or use a different <code>PORT</code>.</p>
+    </div>
+    <div class="box where">
+      <h4>Where the file is headed</h4>
+      <p>In Stage 2 of <span class="path">claude.md</span>, this single file splits into <span class="path">routes/</span>, <span class="path">services/</span>, <span class="path">llm/</span> and <span class="path">db/</span>, with tests in <span class="path">ops-api/test/</span>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 07 TUTORIAL ============ -->
+<section class="sheet">
+  <p class="kicker">07 · Tutorial</p>
+  <h2>The /start menu branch</h2>
+  <p class="standfirst">This branch is now live. When someone taps <i>Start</i>, the bot replies with the menu instead of reading it as an order. This page explains how it was built, so you can rebuild it from a blank canvas as practice.</p>
+
+  <div class="box">
+    <h4>The bug this fixed</h4>
+    <p>When someone taps <i>Start</i>, Telegram sends an ordinary message with the text <code>/start</code>. In the MVP that went straight into the order flow, and the demo extractor turned it into an order, so <b>every new customer created a fake order.</b> In the live version the Switch sits after <i>First delivery?</i> and its rule also matches <code>/menu</code> and <code>menu</code>. The steps below use the simpler two-node version shown in the diagram.</p>
+  </div>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv" viewBox="0 0 880 340" role="img" aria-label="Target workflow: Telegram webhook, Verify Telegram update, Route command switch; the /start output goes to Get menu for start, Combine menu items, Send menu; the fallback output goes to Load menu and the rest of the order flow">
+        <path class="edge" d="M103 150 H166"/>
+        <path class="edge" d="M253 138 C285 138, 285 150, 316 150"/>
+        <path class="edge" d="M403 138 C445 138, 435 58, 476 58"/>
+        <path class="edge" d="M403 162 C445 162, 435 248, 476 248"/>
+        <path class="edge" d="M563 58 H626"/>
+        <path class="edge" d="M713 58 H776"/>
+        <path class="edge" d="M563 248 H626"/>
+
+        <g class="nd" transform="translate(22,112)">
+          <path class="shape" d="M38 0H66a10 10 0 0 1 10 10v56a10 10 0 0 1-10 10H38a38 38 0 0 1 0-76z"/>
+          <circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-bolt" x="-18" y="30" width="16" height="16"/>
+          <use href="#i-webhook" x="22" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Telegram webhook</text><text class="ns" x="38" y="110">unchanged</text>
+        </g>
+        <g class="nd" transform="translate(172,112)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <text class="hl" x="84" y="20">true</text><text class="hl" x="84" y="44">false</text>
+          <use href="#i-if" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Verify Telegram</text><text class="nl" x="38" y="110">update</text>
+        </g>
+        <g class="nd new" transform="translate(322,112)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <circle class="hout" cx="76" cy="26" r="4.5"/><circle class="hout" cx="76" cy="50" r="4.5"/>
+          <text class="hl" x="84" y="18">/start</text><text class="hl" x="84" y="44">fallback</text>
+          <use href="#i-switch" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Route command</text><text class="ns" x="38" y="110">Switch · rules</text>
+        </g>
+        <g class="nd new" transform="translate(482,20)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-globe" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Get menu for /start</text><text class="ns" x="38" y="110">GET: ops-api /menu</text>
+        </g>
+        <g class="nd new" transform="translate(632,20)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-aggregate" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Combine menu items</text><text class="ns" x="38" y="110">Aggregate</text>
+        </g>
+        <g class="nd new" transform="translate(782,20)">
+          <text class="tag" x="0" y="-8">NEW</text>
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <use href="#i-telegram" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Send menu</text><text class="ns" x="38" y="110">send: message</text>
+        </g>
+        <g class="nd" transform="translate(482,210)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/><circle class="hout" cx="76" cy="38" r="4.5"/>
+          <use href="#i-globe" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Load menu</text><text class="ns" x="38" y="110">unchanged</text>
+        </g>
+        <g class="nd ghost" transform="translate(632,210)">
+          <rect class="shape" width="76" height="76" rx="10"/><rect class="hin" x="-5" y="32" width="6" height="12" rx="1.5"/>
+          <use href="#i-dots" x="20" y="20" width="36" height="36"/>
+          <text class="nl" x="38" y="96">Rest of order flow</text><text class="ns" x="38" y="110">Extract → Validate → …</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption><b>The target.</b> A Switch node sends commands away from the order flow before any LLM call happens. Nodes outlined in orange are the ones you add. The bottom row is the existing flow, unchanged.</figcaption>
+    <div class="legend"><span><i class="new"></i>New node</span><span><i class="ghost"></i>Existing nodes, collapsed</span></div>
+  </figure>
+
+  <div class="cols">
+    <h3>Rebuild drill (on a copy of the workflow)</h3>
+    <ol class="steps">
+      <li><b>Back up first.</b> Open <i>Order intake</i>, then <i>⋯ → Download</i>. If anything goes wrong, Method B in §05 puts this copy back.</li>
+      <li><b>Cut the old wire.</b> Hover over the connection from <i>Verify Telegram update</i> (true) to <i>Load menu</i> and click the bin icon.</li>
+      <li><b>Add the router.</b> Drag from Verify's <i>true</i> output, search for <b>Switch</b>, and rename the node <i>Route command</i>. Set Mode to <i>Rules</i>. Add one rule:
+        <ul>
+          <li>Value: an expression that reads the message text from the trigger node. Copy how <i>Send confirmation</i> reaches the trigger, but end with <code>.message.text</code> instead of <code>.message.chat.id</code>.</li>
+          <li>Operation: <i>String → starts with</i> <code>/start</code></li>
+          <li>Turn on <i>Rename Output</i> and call it <code>/start</code>.</li>
+        </ul>
+        Under <i>Options</i>, set <b>Fallback Output</b> to <i>Extra Output</i> and rename it <code>fallback</code>.</li>
+      <li><b>Re-attach the order flow.</b> Drag from the <i>fallback</i> output onto <i>Load menu</i>. Ordinary messages now take exactly the same path as before.</li>
+      <li><b>Fetch the menu.</b> From the <i>/start</i> output, add an <b>HTTP Request</b> node named <i>Get menu for /start</i>, with Method GET and URL <code>http://ops-api:3001/menu</code>. Duplicating <i>Load menu</i> (Ctrl+D) and renaming the copy also works.</li>
+      <li><b>Combine the dishes.</b> Add an <b>Aggregate</b> node named <i>Combine menu items</i>, set Aggregate to <i>All Item Data (Into a Single List)</i>, and set the output field to <code>menu</code>.</li>
+      <li><b>Send it.</b> Add a <b>Telegram → Send Message</b> node named <i>Send menu</i>. Pick the <i>Pastry Telegram bot</i> credential. Copy Chat ID from <i>Send confirmation</i>. For Text, write an expression that turns <code>$json.menu</code> into one line per dish (name and price in RD$), joined with line breaks, under a short greeting. Under Additional Fields, turn <i>Append n8n Attribution</i> off.</li>
+      <li><b>Save and test.</b> Press Ctrl+S, then send <code>/start</code> to the bot. In <i>Executions</i>, the run should take the top path and never touch <i>Create order via API</i>.</li>
+      <li><b>Advertise the command.</b> This one is still for you to do: in @BotFather, send <code>/setcommands</code>, pick your bot, and send <code>menu - See today's menu</code>. Telegram then shows it in the bot's Menu button.</li>
+      <li><b>Export and commit.</b> Download over <span class="path">n8n/workflows/order-intake.json</span> and commit with a message like "Route /start to menu reply".</li>
+    </ol>
+
+    <div class="box">
+      <h4>Why each piece is there</h4>
+      <ul>
+        <li><b>Why a Switch, not an IF?</b> More commands are coming (<code>/menu</code>, <code>/status</code>, <code>/help</code>). A Switch takes one more rule per command, while IFs would have to be chained.</li>
+        <li><b>Why not reuse "Load menu"?</b> A node sends its output down <i>every</i> connection it has. Wiring it to both branches would run the order flow on <code>/start</code> too.</li>
+        <li><b>Why Aggregate?</b> The menu request returns six items. A Telegram node runs once per item, so without Aggregate the customer would get six separate messages.</li>
+        <li><b>Why route before the LLM?</b> Commands are free to recognise and LLM calls aren't. Handle anything you can recognise with plain rules before paying for a model.</li>
+      </ul>
+    </div>
+
+    <h4>Done when</h4>
+    <ul class="check">
+      <li><code>/start</code> gets exactly one message listing every active dish with its price.</li>
+      <li>No new row appears in <code>orders</code> after <code>/start</code>.</li>
+      <li>A normal order message still gets a confirmation.</li>
+      <li>After a price change in psql, the next <code>/start</code> shows the new price.</li>
+      <li>The exported JSON is committed.</li>
+    </ul>
+
+    <h4>Stretch goals</h4>
+    <ul>
+      <li>Add a <code>/status</code> rule that looks up the customer's latest order with <code>GET /orders/:id</code>.</li>
+      <li>Group dishes by <code>category</code> in the message, and use Parse Mode <i>HTML</i> for bold headings.</li>
+      <li>Add <code>/help</code> as a third output that replies with an example order.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 08 OPERATIONS ============ -->
+<section class="sheet">
+  <p class="kicker">08 · Operations</p>
+  <h2>Running it day to day</h2>
+  <p class="standfirst">Run everything from <span class="path">~/jobappproj</span>. These are the commands you'll use most.</p>
+
+  <table>
+    <thead><tr><th style="width:34%">Task</th><th>Command</th></tr></thead>
+    <tbody>
+      <tr><td>Start everything</td><td><code>docker compose up -d</code></td></tr>
+      <tr><td>See what's running</td><td><code>docker compose ps</code></td></tr>
+      <tr><td>Stop everything, keep data</td><td><code>docker compose down</code></td></tr>
+      <tr><td>Follow a service's logs</td><td><code>docker compose logs -f n8n</code> (or <code>ops-api</code>, <code>postgres</code>, <code>cloudflared</code>)</td></tr>
+      <tr><td>Rebuild the API after code changes</td><td><code>docker compose up -d --build ops-api</code></td></tr>
+      <tr><td>Apply <span class="path">.env</span> changes</td><td><code>docker compose up -d</code> (recreates only the containers whose settings changed)</td></tr>
+      <tr><td>Open the database</td><td><code>docker compose exec postgres psql -U pastry -d pastry_ops</code></td></tr>
+      <tr><td>LLM spend, last 7 days</td><td><code class="wrap">curl -H "x-api-key: $OPS_API_KEY" localhost:3002/reports/llm-usage</code></td></tr>
+      <tr><td>Tomorrow's prep list</td><td><code class="wrap">curl -H "x-api-key: $OPS_API_KEY" "localhost:3002/reports/prep-list?date=YYYY-MM-DD"</code></td></tr>
+      <tr><td>Run the evals</td><td><code class="wrap">cd ops-api &amp;&amp; node --env-file=../.env --import tsx ../evals/run.ts</code> (about $0.13 a run)</td></tr>
+      <tr><td>Latest orders</td><td>In psql: <code>SELECT * FROM orders ORDER BY id DESC LIMIT 10;</code></td></tr>
+      <tr><td>Find the public URL</td><td><code>docker compose logs cloudflared | grep trycloudflare.com</code></td></tr>
+      <tr><td>Check Telegram's view</td><td><code class="wrap">curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo"</code> (after loading <span class="path">.env</span> as in step 4 below)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="cols">
+    <h3>After every reboot: the tunnel dance</h3>
+    <p>The quick tunnel gets a new random URL each time it starts, and Telegram is still pointing at the old one. Do these four steps whenever the URL changes:</p>
+    <ol class="steps">
+      <li><b>Start and read the URL.</b> Run <code>docker compose up -d</code>, wait about ten seconds, then grep the cloudflared logs as shown above.</li>
+      <li><b>Update <span class="path">.env</span>.</b> Set <code>WEBHOOK_URL=https://…trycloudflare.com/</code>, keeping the trailing slash.</li>
+      <li><b>Restart n8n:</b> <code>docker compose up -d n8n</code>.</li>
+      <li><b>Re-register with Telegram:</b>
+<div class="cmd">set -a; source .env; set +a
+curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -d url="${WEBHOOK_URL}webhook/order-intake" \
+  -d secret_token="$TELEGRAM_WEBHOOK_SECRET"</div></li>
+    </ol>
+    <p>A named Cloudflare tunnel on your own domain makes the URL permanent and removes these steps. The course does that in Stage 3, with Caddy on a VPS.</p>
+
+    <h3>Environment variables</h3>
+    <table>
+      <thead><tr><th>Variable</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>POSTGRES_*</td><td>Database name, user and password. The password is only applied the <b>first</b> time the volume is created.</td></tr>
+        <tr><td>API_PORT</td><td>The API's port on your laptop (3002). Inside Docker it's always 3001.</td></tr>
+        <tr><td>N8N_PORT</td><td>5678.</td></tr>
+        <tr><td>N8N_ENCRYPTION_KEY</td><td>Encrypts n8n credentials. Back it up and never change it.</td></tr>
+        <tr><td>WEBHOOK_URL</td><td>The public base URL, with a trailing slash.</td></tr>
+        <tr><td>TELEGRAM_BOT_TOKEN</td><td>From @BotFather.</td></tr>
+        <tr><td>TELEGRAM_WEBHOOK_SECRET</td><td>A random string you choose. Telegram echoes it back in a header.</td></tr>
+        <tr><td>ANTHROPIC_API_KEY</td><td>Claude access. Already set.</td></tr>
+        <tr><td>ANTHROPIC_MODEL_FAST / _STRONG</td><td><code>claude-haiku-5-5</code> / <code>claude-sonnet-5-5</code>. Run the eval before changing them.</td></tr>
+        <tr><td>OPS_API_KEY</td><td>Shared secret between n8n and the API. Generated for you.</td></tr>
+        <tr><td>OWNER_TELEGRAM_CHAT_ID</td><td><b>Still to fill in:</b> your own chat ID, where the 6am prep list goes. To get it, message the bot, then look at <code>message.chat.id</code> in that run's webhook output under Executions.</td></tr>
+        <tr><td>DATABASE_URL</td><td>Only used when running the API outside Docker. Compose sets its own value.</td></tr>
+        <tr><td>CLOUDFLARED_TUNNEL_TOKEN</td><td>Unused while you're on the quick tunnel.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="box warn">
+      <h4>The danger zone</h4>
+      <ul>
+        <li><code>docker compose down <b>-v</b></code> deletes both volumes: every order, the menu, and every n8n workflow and credential.</li>
+        <li>Changing <code>N8N_ENCRYPTION_KEY</code> makes every stored credential unreadable.</li>
+        <li>Changing <code>POSTGRES_PASSWORD</code> after the first start locks n8n and the API out of the database. The old password is still the real one.</li>
+        <li>Pasting real keys into <span class="path">.env.example</span> commits them to git.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 09 NEXT ============ -->
+<section class="sheet">
+  <p class="kicker">09 · Roadmap</p>
+  <h2>Phase 1 done. Phase 2 is next</h2>
+  <p class="standfirst">Every Phase 1 step in <span class="path">claude.md</span> is done and verified. Phase 2 puts the system on a server that a stranger can reach at any hour.</p>
+
+  <table>
+    <thead><tr><th style="width:28%">Phase 1 step</th><th style="width:16%">Status</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>1 · Route commands before the LLM</td><td>Done</td><td>Route command Switch. <code>/start</code> creates no order.</td></tr>
+      <tr><td>2 · Claude structured extraction</td><td>Done</td><td><span class="path">src/llm/extract.ts</span>, Zod schema, menu grounding.</td></tr>
+      <tr><td>3 · Validation in code</td><td>Done</td><td><span class="path">src/rules.ts</span>. Off-menu requests get a question, never an invented item.</td></tr>
+      <tr><td>4 · Dedupe and error replies</td><td>Done</td><td>A replayed update created no second order (tested). Apology on errors (tested).</td></tr>
+      <tr><td>5 · LLM call log</td><td>Done</td><td><code>llm_calls</code> and <code>/reports/llm-usage</code>.</td></tr>
+      <tr><td>6 · Evals</td><td>Done</td><td>30/30 on all three modes. Injection cases 5/5.</td></tr>
+      <tr><td>7 · Model routing and ADR</td><td>Done</td><td>Haiku by default at $0.0002 per order. <span class="path">docs/decisions/001-model-choice.md</span>.</td></tr>
+      <tr><td>8 · Daily prep list</td><td>Done*</td><td>Active at 6am. *Waiting on <code>OWNER_TELEGRAM_CHAT_ID</code>.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="cols">
+    <div class="box">
+      <h4>Phase 2 — ship it</h4>
+      <ul>
+        <li>A hardened VPS: SSH keys only, ufw, fail2ban.</li>
+        <li><span class="path">docker-compose.prod.yml</span> and Caddy with TLS on your own domain. This replaces the tunnel-URL routine.</li>
+        <li>Per-chat rate limits and a daily LLM spend cap read from <code>llm_calls</code>.</li>
+        <li>Nightly <code>pg_dump</code> offsite, and a tested restore.</li>
+        <li>Uptime Kuma, plus an n8n error workflow that sends a Telegram alert.</li>
+        <li>Tests and GitHub Actions: type-check, tests, evals, deploy.</li>
+      </ul>
+    </div>
+    <div class="box where">
+      <h4>Phase 3 — agency fit</h4>
+      <p>A Shopify dev-store workflow with a CRM sync and a "where is my order?" agent, an MCP server, a Make scenario, a voice agent, an OpenRouter option in the eval, workflow docs, and the README rewritten as a case study with a 2-minute video.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 10 TROUBLESHOOTING ============ -->
+<section class="sheet">
+  <p class="kicker">10 · When it breaks</p>
+  <h2>Troubleshooting</h2>
+  <p class="standfirst">Start with Executions in n8n, then <code>getWebhookInfo</code>, then the container logs. Together they cover almost every problem.</p>
+
+  <table>
+    <thead><tr><th style="width:27%">Symptom</th><th style="width:33%">Likely cause</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td>Bot doesn't answer, and Executions shows no new run</td><td>The tunnel URL changed, or the webhook isn't registered.</td><td>Run <code>getWebhookInfo</code>. If <code>last_error_message</code> shows an old URL or a connection error, do the tunnel dance (§08).</td></tr>
+      <tr><td><code>getWebhookInfo</code> shows 404</td><td>The workflow is inactive, or the webhook path changed.</td><td>Activate it in the editor. Check that the trigger path is <code>order-intake</code>.</td></tr>
+      <tr><td>Run stops at <i>Verify Telegram update</i></td><td>Secret mismatch, or a non-text message.</td><td>Run <code>setWebhook</code> again with <code>secret_token</code>. Check that <code>TELEGRAM_WEBHOOK_SECRET</code> in <span class="path">.env</span> matches, then <code>docker compose up -d n8n</code>.</td></tr>
+      <tr><td><i>Create order via API</i> is red with a 400</td><td>An unknown <code>item_id</code> or a field that fails the Zod rules.</td><td>Open the node's error output. The message names the bad items or fields.</td></tr>
+      <tr><td><i>Load menu</i> fails with ECONNREFUSED</td><td>ops-api is down or crashing.</td><td><code>docker compose logs ops-api</code>, then rebuild.</td></tr>
+      <tr><td>ops-api won't start: "port is already allocated"</td><td>Something else on your laptop uses <code>API_PORT</code>.</td><td>Choose a free port in <span class="path">.env</span> and run <code>docker compose up -d</code>.</td></tr>
+      <tr><td>n8n: "Mismatching encryption keys"</td><td><code>N8N_ENCRYPTION_KEY</code> changed.</td><td>Restore the original key from your backup.</td></tr>
+      <tr><td>"password authentication failed for user pastry"</td><td>The password in <span class="path">.env</span> was edited after the first start.</td><td>Put the original password back. A wipe with <code>down -v</code> also fixes it but deletes everything.</td></tr>
+      <tr><td>Every API call returns 401</td><td><code>OPS_API_KEY</code> is missing or doesn't match between n8n and ops-api.</td><td>Both read <span class="path">.env</span>. After editing it, run <code>docker compose up -d</code> to recreate both containers.</td></tr>
+      <tr><td>The customer got the apology</td><td>Extraction or order creation failed.</td><td>Open the run in Executions and look at the failed node's error output. Check <code>docker compose logs ops-api</code> and the <code>llm_calls</code> rows with outcome <code>error</code>.</td></tr>
+      <tr><td>A message got no reply, and Executions shows it stopped at <i>First delivery?</i></td><td>That <code>update_id</code> was already processed.</td><td>Expected for Telegram retries. When testing by hand, use a new <code>update_id</code> each time.</td></tr>
+      <tr><td>The prep list never arrives</td><td><code>OWNER_TELEGRAM_CHAT_ID</code> is still <code>replace_me</code>.</td><td>Set it in <span class="path">.env</span>, then run <code>docker compose up -d n8n</code>.</td></tr>
+      <tr><td>The customer gets six messages</td><td>A Telegram node runs once per item.</td><td>Put an Aggregate node in front of it (§07).</td></tr>
+      
+      <tr><td>A menu change doesn't show up</td><td>You edited <span class="path">db/001_init.sql</span>, not the database.</td><td>Change the row in psql (§04).</td></tr>
+      <tr><td>Editor edits don't appear in git</td><td>The live workflow and the file don't sync.</td><td>Use <i>⋯ → Download</i> over the JSON file and commit.</td></tr>
+      <tr><td>PostHog 401 errors in the n8n logs</td><td>n8n's telemetry.</td><td>Already silenced with <code>N8N_DIAGNOSTICS_ENABLED=false</code> in compose. If you see it again, that setting was lost.</td></tr>
+    </tbody>
+  </table>
+
+  <p class="colophon">Pastry Ops Field Manual · Issue 01 · October 2026. Issue 02 describes the system after Phase 1: Claude extraction, rules in code, dedupe, error replies, cost logging, evals and the daily prep list. To print: open in Chrome, Ctrl+P, A4, margins Default, Background graphics on.</p>
+</section>
+
+<!-- ============ 11 THE WHOLE SYSTEM ============ -->
+<section class="sheet poster-sheet">
+  <p class="kicker">11 · The whole system</p>
+  <h2>Every layer, every part, one page</h2>
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 900 1120" role="img" aria-label="The whole Pastry Ops system as nested layers: entry, security, reliability, AI, orders, observability, quality and operations, with the n8n, ops-api, Postgres and external parts inside each layer"><g class="zone core"><rect x="10" y="10" width="880" height="150" rx="12"/><text class="ztag" x="24" y="27">MVP CORE · ENTRY</text><text class="zdesc" x="155.2" y="27">how a message gets in</text></g><g class="zone l1"><rect x="10" y="174" width="880" height="150" rx="12"/><text class="ztag" x="24" y="191">LAYER 1 · SECURITY</text><text class="zdesc" x="170.6" y="191">only Telegram and n8n get through</text></g><g class="zone l2"><rect x="10" y="338" width="880" height="150" rx="12"/><text class="ztag" x="24" y="355">LAYER 2 · RELIABILITY</text><text class="zdesc" x="193.70000000000002" y="355">once, and never silent</text></g><g class="zone l3"><rect x="10" y="502" width="880" height="260" rx="12"/><text class="ztag" x="24" y="519">LAYER 3 · AI</text><text class="zdesc" x="124.4" y="519">commands skip the LLM; orders are grounded and checked</text></g><g class="zone core"><rect x="10" y="776" width="880" height="160" rx="12"/><text class="ztag" x="24" y="793">MVP CORE · ORDERS</text><text class="zdesc" x="162.9" y="793">prices and totals come from code and Postgres</text></g><g class="zone l4"><rect x="10" y="950" width="292" height="160" rx="12"/><text class="ztag" x="24" y="967">LAYER 4 · OBSERVABILITY</text><text class="zdesc" x="209.1" y="967"></text></g><g class="zone l5"><rect x="308" y="950" width="290" height="160" rx="12"/><text class="ztag" x="322" y="967">LAYER 5 · QUALITY</text><text class="zdesc" x="460.9" y="967"></text></g><g class="zone l6"><rect x="604" y="950" width="286" height="160" rx="12"/><text class="ztag" x="618" y="967">LAYER 6 · OPERATIONS</text><text class="zdesc" x="780.0" y="967"></text></g><g class="sub ext"><rect x="20" y="34" width="340" height="118" rx="8"/><text class="slabel" x="28" y="46">EXTERNAL</text></g><g class="sub n8n"><rect x="380" y="34" width="500" height="118" rx="8"/><text class="slabel" x="388" y="46">n8n</text></g><g class="sub api"><rect x="20" y="198" width="340" height="118" rx="8"/><text class="slabel" x="28" y="210">ops-api</text></g><g class="sub n8n"><rect x="380" y="198" width="500" height="118" rx="8"/><text class="slabel" x="388" y="210">n8n</text></g><g class="sub pg"><rect x="20" y="362" width="110" height="118" rx="8"/><text class="slabel" x="28" y="374">POSTGRES</text></g><g class="sub api"><rect x="140" y="362" width="220" height="118" rx="8"/><text class="slabel" x="148" y="374">ops-api</text></g><g class="sub n8n"><rect x="380" y="362" width="500" height="118" rx="8"/><text class="slabel" x="388" y="374">n8n</text></g><g class="sub ext"><rect x="20" y="526" width="110" height="228" rx="8"/><text class="slabel" x="28" y="538">CLAUDE API</text></g><g class="sub api"><rect x="140" y="526" width="220" height="228" rx="8"/><text class="slabel" x="148" y="538">ops-api</text></g><g class="sub n8n"><rect x="380" y="526" width="500" height="228" rx="8"/><text class="slabel" x="388" y="538">n8n</text></g><g class="sub pg"><rect x="20" y="800" width="230" height="128" rx="8"/><text class="slabel" x="28" y="812">POSTGRES</text></g><g class="sub api"><rect x="260" y="800" width="100" height="128" rx="8"/><text class="slabel" x="268" y="812">ops-api</text></g><g class="sub n8n"><rect x="380" y="800" width="500" height="128" rx="8"/><text class="slabel" x="388" y="812">n8n</text></g><g class="sub pg"><rect x="20" y="974" width="110" height="126" rx="8"/><text class="slabel" x="28" y="986">POSTGRES</text></g><g class="sub api"><rect x="140" y="974" width="152" height="126" rx="8"/><text class="slabel" x="148" y="986">ops-api</text></g><g class="sub repo"><rect x="318" y="974" width="270" height="126" rx="8"/><text class="slabel" x="326" y="986">REPO · evals/</text></g><g class="sub n8n"><rect x="614" y="974" width="266" height="126" rx="8"/><text class="slabel" x="622" y="986">n8n · Daily prep list</text></g><path class="e flow" d="M103 88 H157"/><path class="e flow" d="M223 88 H277"/><path class="e flow" d="M343 88 H393"/><path class="e flow" d="M428 152 V216"/><path class="e flow" d="M428 316 V380"/><path class="e flow" d="M459 416 H513"/><path class="e call" d="M396 416 H266"/><path class="e db" d="M196 416 H104"/><path class="e flow" d="M548 480 C548 560, 428 520, 428 597"/><path class="e flow" d="M459 626 C490 626, 490 580, 513 580"/><path class="e flow" d="M459 644 C490 644, 490 690, 513 690"/><path class="e flow" d="M579 580 H633"/><path class="e flow" d="M699 580 H753"/><path class="e flow" d="M579 690 H633"/><path class="e call" d="M514 704 C470 704, 380 690, 343 690"/><path class="e call" d="M300 658 C300 600, 262 580, 243 580"/><path class="e call" d="M277 690 H104"/><path class="e esc" d="M72 660 V646"/><path class="e flow" d="M660 750 C660 790, 548 780, 548 818"/><path class="e flow" d="M676 750 C676 790, 788 780, 788 818"/><path class="e flow" d="M579 854 H633"/><path class="e call" d="M514 868 C460 868, 380 854, 343 854"/><path class="e db" d="M277 846 H219"/><path class="e db" d="M300 914 C300 934, 72 934, 72 918"/><path class="e err" d="M581 712 C602 712, 600 758, 622 758 H866 Q878 758 878 746 V428 Q878 416 866 416 H823"/><path class="e err nomark" d="M581 870 C602 870, 600 930, 622 930 H866 Q878 930 878 918 V760"/><path class="e db" d="M109 1028 H185"/><path class="e flow" d="M399 1028 H435"/><path class="e flow" d="M499 1028 H535"/><path class="e flow" d="M699 1028 H725"/><path class="e flow" d="M789 1028 H815"/><g class="nd" transform="translate(44,60)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-bolt" x="-15" y="21" width="13" height="13"/><use href="#i-user" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Customer</text><text class="ns2" x="28" y="82">Telegram app</text></g><g class="nd" transform="translate(164,60)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Telegram</text><text class="ns2" x="28" y="82">Bot API</text></g><g class="nd" transform="translate(284,60)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-cloud" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">cloudflared</text><text class="ns2" x="28" y="82">public HTTPS</text></g><g class="nd" transform="translate(400,60)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-bolt" x="-15" y="21" width="13" height="13"/><use href="#i-webhook" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Telegram</text><text class="nl2" x="28" y="82">webhook</text></g><g class="nd new" transform="translate(160,224)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-key" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">API-key gate</text><text class="ns2" x="28" y="82">x-api-key on every call</text></g><g class="nd" transform="translate(400,224)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Verify Telegram</text><text class="nl2" x="28" y="82">update</text></g><g class="nd" transform="translate(44,388)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">processed_</text><text class="nl2" x="28" y="82">updates</text></g><g class="nd new" transform="translate(200,388)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">/updates/claim</text><text class="ns2" x="28" y="82">insert or skip</text></g><g class="nd new" transform="translate(400,388)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Claim update</text></g><g class="nd new" transform="translate(520,388)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">First delivery?</text></g><g class="nd new" transform="translate(760,388)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Send apology</text><text class="ns2" x="28" y="82">on any error</text></g><g class="nd" transform="translate(44,552)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-spark" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Claude</text><text class="nl2" x="28" y="82">Sonnet 5.5</text></g><g class="nd" transform="translate(44,662)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-spark" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Claude</text><text class="nl2" x="28" y="82">Haiku 5.5</text></g><g class="nd new" transform="translate(180,552)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">rules.ts</text><text class="ns2" x="28" y="82">hours · menu · qty</text></g><g class="nd new" transform="translate(280,662)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">/llm/</text><text class="nl2" x="28" y="82">extract-order</text></g><g class="nd new" transform="translate(400,597)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-switch" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Route command</text></g><g class="nd new" transform="translate(520,552)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Get menu</text></g><g class="nd new" transform="translate(640,552)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-aggregate" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Combine</text><text class="nl2" x="28" y="82">menu items</text></g><g class="nd new" transform="translate(760,552)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Send menu</text></g><g class="nd new" transform="translate(520,662)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Extract order</text><text class="nl2" x="28" y="82">with LLM</text></g><g class="nd" transform="translate(640,662)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Validate</text><text class="nl2" x="28" y="82">extracted order</text></g><g class="nd" transform="translate(44,826)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">orders</text><text class="ns2" x="28" y="82">+ order_items</text></g><g class="nd" transform="translate(160,826)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">menu_items</text><text class="ns2" x="28" y="82">prices</text></g><g class="nd" transform="translate(280,826)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">/orders</text><text class="ns2" x="28" y="82">1 transaction</text></g><g class="nd" transform="translate(520,826)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Create order</text><text class="nl2" x="28" y="82">via API</text></g><g class="nd" transform="translate(640,826)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Send</text><text class="nl2" x="28" y="82">confirmation</text></g><g class="nd" transform="translate(760,826)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Ask clarifying</text><text class="nl2" x="28" y="82">question</text></g><g class="nd" transform="translate(48,1000)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">llm_calls</text><text class="ns2" x="28" y="82">tokens · cost · latency</text></g><g class="nd" transform="translate(190,1000)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">/reports/</text><text class="nl2" x="28" y="82">llm-usage</text></g><g class="nd" transform="translate(340,1000)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">cases.jsonl</text><text class="ns2" x="28" y="82">30 cases</text></g><g class="nd" transform="translate(440,1000)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">run.ts</text><text class="ns2" x="28" y="82">3 model modes</text></g><g class="nd" transform="translate(540,1000)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">results.md</text><text class="ns2" x="28" y="82">+ ADR 001</text></g><g class="nd" transform="translate(640,1000)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-bolt" x="-15" y="21" width="13" height="13"/><use href="#i-clock" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Every day</text><text class="nl2" x="28" y="82">6am</text></g><g class="nd" transform="translate(730,1000)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Get</text><text class="nl2" x="28" y="82">prep list</text></g><g class="nd" transform="translate(820,1000)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Send</text><text class="nl2" x="28" y="82">prep list</text><text class="ns2" x="28" y="94">to owner</text></g><text class="pnote err" x="800" y="750" text-anchor="middle">error outputs → apology</text><text class="pnote small" x="88" y="656" text-anchor="start">escalate</text><text class="hl2" x="624" y="771" text-anchor="start">true</text><text class="hl2" x="694" y="771" text-anchor="start">false</text><text class="pnote small" x="150" y="946" text-anchor="middle">writes</text><text class="pnote small" x="70" y="1106" text-anchor="middle">written by extract-order</text><text class="pnote small" x="453" y="1106" text-anchor="middle">run.ts calls extract.ts + rules.ts directly</text><text class="pnote small" x="747" y="1106" text-anchor="middle">GET /reports/prep-list</text></svg>
+    </div>
+    <div class="edge-legend">
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#8f95a0" stroke-width="2"/></svg>message flow (n8n connection)</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#2a1f19" stroke-width="2" stroke-dasharray="6 4"/></svg>HTTP / API call</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#336791" stroke-width="2" stroke-dasharray="2 3"/></svg>database read / write</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#7c4ddb" stroke-width="2" stroke-dasharray="2 3"/></svg>model escalation</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#b8322a" stroke-width="2" stroke-dasharray="6 4"/></svg>error path</span>
+    </div>
+    <div class="edge-legend">
+      <span><b style="background:#fff3f6;border-color:#ea4b71"></b>runs in n8n</span>
+      <span><b style="background:#f7f4f1;border-color:#6b5e55"></b>runs in ops-api</span>
+      <span><b style="background:#eef4fa;border-color:#336791"></b>stored in Postgres</span>
+      <span><b style="background:#fff6ec;border-color:#e08a3c"></b>external service</span>
+      <span><b style="background:#fafafa;border-color:#9aa0aa"></b>repo, run by hand</span>
+    </div>
+    <figcaption><b>How to read it.</b> Each colored band is one layer, from the MVP core (cream) up to Phase 1's six layers. Inside each band, the inner boxes show <i>where</i> that layer lives. A message enters at the top left, moves down the n8n column on the right, and reaches across into ops-api, Postgres and Claude along dashed lines. Nodes outlined in orange were added in Phase 1.</figcaption>
+  </figure>
+</section>
+
+</body>
+</html>

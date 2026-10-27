@@ -11,6 +11,15 @@ This project is a lean, interview-friendly MVP for a pastry order automation sys
 
 The core idea is simple: the AI helps interpret the customer request, but the database and backend service decide what is allowed, what is valid, and what the final price is.
 
+## Phase 1 results
+
+- **Real AI extraction:** Claude structured outputs, grounded in the live menu from Postgres, with business rules enforced in code.
+- **Measured:** 30-case eval with 100% accuracy and 5/5 prompt-injection cases handled, at **$0.0002 per order** on Claude Haiku 5.5 (Claude Sonnet 5.5 costs $0.0038 for the same accuracy). See [evals/results.md](evals/results.md) and [ADR 001](docs/decisions/001-model-choice.md).
+- **Production basics:** API-key auth between n8n and the API, Telegram secret-token verification, update-level dedupe, idempotent and transactional order creation, an error branch that apologizes instead of going silent, and per-call LLM cost logging (`GET /reports/llm-usage`).
+- **Second workflow:** a daily 6am prep list sent to the owner on Telegram.
+
+Run the eval: `cd ops-api && node --env-file=../.env --import tsx ../evals/run.ts`
+
 ---
 
 ## 1. System overview

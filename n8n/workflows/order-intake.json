@@ -11,7 +11,10 @@
       "name": "Telegram webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [0, 0],
+      "position": [
+        0,
+        0
+      ],
       "webhookId": "0b6c5c2e-6a51-4c1e-9d4e-7f1f6a3b2c10",
       "parameters": {
         "httpMethod": "POST",
@@ -25,7 +28,10 @@
       "name": "Verify Telegram update",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [240, 0],
+      "position": [
+        220,
+        0
+      ],
       "parameters": {
         "conditions": {
           "string": [
@@ -44,70 +50,144 @@
       }
     },
     {
-      "id": "load-menu",
-      "name": "Load menu",
+      "id": "claim-update",
+      "name": "Claim update",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 0],
-      "parameters": {
-        "url": "http://ops-api:3001/menu",
-        "options": {}
-      }
-    },
-    {
-      "id": "llm-extract",
-      "name": "Extract order with LLM",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [720, 0],
-      "executeOnce": true,
+      "position": [
+        440,
+        0
+      ],
       "parameters": {
         "method": "POST",
-        "url": "http://ops-api:3001/llm/extract-order",
+        "url": "http://ops-api:3001/updates/claim",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.OPS_API_KEY }}"
+            }
+          ]
+        },
+        "options": {},
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ message: $('Telegram webhook').first().json.body.message.text, menu_items: $('Load menu').all().map(i => i.json) }) }}",
-        "options": {}
+        "jsonBody": "={{ JSON.stringify({ update_id: $json.body.update_id, source: 'telegram' }) }}"
       }
     },
     {
-      "id": "validate-order",
-      "name": "Validate extracted order",
+      "id": "first-delivery",
+      "name": "First delivery?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [960, 0],
+      "position": [
+        660,
+        0
+      ],
       "parameters": {
         "conditions": {
           "boolean": [
             {
-              "value1": "={{ $json.valid }}",
+              "value1": "={{ $json.first }}",
               "value2": true
             }
           ]
+        },
+        "combineOperation": "all"
+      }
+    },
+    {
+      "id": "route-command",
+      "name": "Route command",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        880,
+        0
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cmd-menu",
+                    "leftValue": "={{ $('Telegram webhook').first().json.body.message.text.trim() }}",
+                    "rightValue": "^(/start|/menu|menu)\\b",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "menu"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "order"
         }
       }
     },
     {
-      "id": "save-order",
-      "name": "Create order via API",
+      "id": "get-menu",
+      "name": "Get menu",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, -100],
+      "position": [
+        1100,
+        -200
+      ],
       "parameters": {
-        "method": "POST",
-        "url": "http://ops-api:3001/orders",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ customer_name: $json.customer_name || $('Telegram webhook').first().json.body.message.from.first_name || 'Guest', customer_phone: $json.customer_phone || '00000000', delivery_address: $json.delivery_address, delivery_time: $json.delivery_time, items: $json.items, notes: $json.notes, idempotency_key: 'tg-' + $('Telegram webhook').first().json.body.update_id }) }}",
+        "url": "http://ops-api:3001/menu",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.OPS_API_KEY }}"
+            }
+          ]
+        },
         "options": {}
       }
     },
     {
-      "id": "confirm-order",
-      "name": "Send confirmation",
+      "id": "combine-menu",
+      "name": "Combine menu items",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        -200
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "menu",
+        "options": {}
+      }
+    },
+    {
+      "id": "send-menu",
+      "name": "Send menu",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1440, -100],
+      "position": [
+        1540,
+        -200
+      ],
       "credentials": {
         "telegramApi": {
           "id": "pastryTelegramBot",
@@ -116,7 +196,107 @@
       },
       "parameters": {
         "chatId": "={{ $('Telegram webhook').first().json.body.message.chat.id }}",
-        "text": "={{ 'Your order #' + $json.order.id + ' has been received. Total: ' + $json.order.total + ' RD$.' }}",
+        "text": "={{ \"Hola! Here's our menu:\\n\\n\" + $json.menu.map(m => '• ' + m.item_name + ' · RD$ ' + m.price).join('\\n') + \"\\n\\nTell me what you'd like, the day and time, and the delivery address.\" }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "llm-extract",
+      "name": "Extract order with LLM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://ops-api:3001/llm/extract-order",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.OPS_API_KEY }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $('Telegram webhook').first().json.body.message.text, ref: 'telegram:' + $('Telegram webhook').first().json.body.update_id }) }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "validate-order",
+      "name": "Validate extracted order",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1320,
+        100
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
+            }
+          ]
+        },
+        "combineOperation": "all"
+      }
+    },
+    {
+      "id": "save-order",
+      "name": "Create order via API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1540,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://ops-api:3001/orders",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.OPS_API_KEY }}"
+            }
+          ]
+        },
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ customer_name: $json.customer_name || $('Telegram webhook').first().json.body.message.from.first_name || 'Guest', customer_phone: 'tg:' + $('Telegram webhook').first().json.body.message.chat.id, delivery_address: $json.delivery_address, delivery_time: $json.delivery_at, items: $json.items, notes: $json.notes, idempotency_key: 'tg-' + $('Telegram webhook').first().json.body.update_id }) }}"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "confirm-order",
+      "name": "Send confirmation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        0
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pastryTelegramBot",
+          "name": "Pastry Telegram bot"
+        }
+      },
+      "parameters": {
+        "chatId": "={{ $('Telegram webhook').first().json.body.message.chat.id }}",
+        "text": "={{ 'Order #' + $json.order.id + ' confirmed ✅\\n\\n' + $json.items.map(i => i.quantity + '× ' + i.item_name).join('\\n') + '\\n\\nTotal: RD$ ' + $json.order.total + '\\nDelivery: ' + $json.order.delivery_time.replace('T', ' at ') + '\\nAddress: ' + $json.order.delivery_address }}",
         "additionalFields": {
           "appendAttribution": false
         }
@@ -127,7 +307,10 @@
       "name": "Ask clarifying question",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [1200, 100],
+      "position": [
+        1540,
+        200
+      ],
       "credentials": {
         "telegramApi": {
           "id": "pastryTelegramBot",
@@ -136,7 +319,30 @@
       },
       "parameters": {
         "chatId": "={{ $('Telegram webhook').first().json.body.message.chat.id }}",
-        "text": "={{ $json.clarification || $json.message || 'I need one missing detail before I can place the order.' }}",
+        "text": "={{ $json.clarification }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      }
+    },
+    {
+      "id": "apology",
+      "name": "Send apology",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1760,
+        320
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pastryTelegramBot",
+          "name": "Pastry Telegram bot"
+        }
+      },
+      "parameters": {
+        "chatId": "={{ $('Telegram webhook').first().json.body.message.chat.id }}",
+        "text": "Sorry, something went wrong on our side. Please try again in a minute, or send /menu.",
         "additionalFields": {
           "appendAttribution": false
         }
@@ -145,25 +351,144 @@
   ],
   "connections": {
     "Telegram webhook": {
-      "main": [[{ "node": "Verify Telegram update", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Verify Telegram update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Verify Telegram update": {
-      "main": [[{ "node": "Load menu", "type": "main", "index": 0 }], []]
+      "main": [
+        [
+          {
+            "node": "Claim update",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     },
-    "Load menu": {
-      "main": [[{ "node": "Extract order with LLM", "type": "main", "index": 0 }]]
+    "Claim update": {
+      "main": [
+        [
+          {
+            "node": "First delivery?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First delivery?": {
+      "main": [
+        [
+          {
+            "node": "Route command",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Route command": {
+      "main": [
+        [
+          {
+            "node": "Get menu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract order with LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get menu": {
+      "main": [
+        [
+          {
+            "node": "Combine menu items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine menu items": {
+      "main": [
+        [
+          {
+            "node": "Send menu",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Extract order with LLM": {
-      "main": [[{ "node": "Validate extracted order", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Validate extracted order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send apology",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Validate extracted order": {
       "main": [
-        [{ "node": "Create order via API", "type": "main", "index": 0 }],
-        [{ "node": "Ask clarifying question", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Create order via API",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ask clarifying question",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Create order via API": {
-      "main": [[{ "node": "Send confirmation", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Send confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send apology",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   }
 }
