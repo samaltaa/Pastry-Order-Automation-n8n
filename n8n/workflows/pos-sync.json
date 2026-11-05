@@ -1,0 +1,140 @@
+{
+  "id": "pastryPosSync",
+  "name": "POS to Shopify sync",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "pastryErrorAlert"
+  },
+  "nodes": [
+    {
+      "id": "schedule",
+      "name": "Every 15 minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 * * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "run-sync",
+      "name": "Run sync",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://sync-api:3002/sync",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.OPS_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ table: 'articulos', trigger: 'schedule' }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "needs-attention",
+      "name": "Failures or conflicts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.counts.failed + $json.counts.conflicts }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "alert-owner",
+      "name": "Tell the owner",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        660,
+        -100
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pastryTelegramBot",
+          "name": "Pastry Telegram bot"
+        }
+      },
+      "parameters": {
+        "chatId": "={{ $env.OWNER_TELEGRAM_CHAT_ID }}",
+        "text": "={{ 'POS sync run ' + $json.run_id + ': ' + $json.counts.failed + ' failed, ' + $json.counts.conflicts + ' stock conflicts\\n' + $json.changes.filter(c => c.action === 'failed' || c.conflict).slice(0, 10).map(c => c.sku + ': ' + c.detail).join('\\n') }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 15 minutes": {
+      "main": [
+        [
+          {
+            "node": "Run sync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run sync": {
+      "main": [
+        [
+          {
+            "node": "Failures or conflicts?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Failures or conflicts?": {
+      "main": [
+        [
+          {
+            "node": "Tell the owner",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  }
+}

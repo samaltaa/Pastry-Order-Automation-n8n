@@ -93,19 +93,33 @@ A fake point-of-sale database for the pastry shop. It has no real client data, a
 
 ## Phase 5: Sync POS → Shopify (one direction)
 
-- [ ] Apply the approved mapping to POS rows to build Shopify input. This is pure Python and unit-tested.
-- [ ] Skip rows whose hash hasn't changed. Create or update products by SKU with `productSet`.
-- [ ] Set stock with `inventorySetQuantities` at the store's main location
-- [ ] Dry-run mode: return the planned changes without writing anything
-- [ ] Every run records counts and errors in `sync_runs`
-- [ ] Failures alert through the existing n8n error workflow
-- [ ] n8n schedule: every 10–15 minutes, and `/sync` on Telegram for a manual run
-- [ ] The first load handles about 40 products; note bulk operations as the path for large catalogs
+- [x] `app/sync.py`: applies the approved mapping to every POS row, then for each product:
+  - **New SKU:** `productSet` creates it with its stock, matched by a handle built from the SKU
+  - **Product data changed** (title, price, cost, tax, status, barcode, category): `productSet` updates it, matched by Shopify ID
+  - **Stock changed:** `inventorySetQuantities` with `@idempotent` and `changeFromQuantity` = the quantity this sync last set
+  - **Nothing changed:** a hash of the last data sent (in `sync.items`) matches, and Shopify isn't called at all
+- [x] Conflicts: if Shopify's stock moved since the last sync (an online sale), Shopify refuses with `CHANGE_FROM_QUANTITY_STALE`. The sync reads the current value, applies the POS quantity (the POS is the source of truth), and reports a conflict.
+- [x] Rows missing a title, SKU or price fail on their own without stopping the run. Excluded rows (`REP-099`) are skipped.
+- [x] Dry run (`{"dry_run": true}`): reports what would change and writes nothing
+- [x] A Postgres advisory lock stops two runs overlapping (409)
+- [x] Every run is recorded in `sync.runs` with counts: created, updated, stock updated, unchanged, failed, conflicts. `GET /sync/runs` lists them.
+- [x] n8n workflow `pos-sync.json`:
+  - Every 15 minutes, POST `/sync`
+  - Telegram message to the owner when anything failed or conflicted
+  - An HTTP error triggers the existing error-alert workflow
+- [x] 7 sync tests against a fake Shopify that refuses stale stock updates like the real one (46 tests in total)
+- [x] Tested on the real store:
+  - First run created 37 products in about 29 seconds; the second run changed nothing
+  - A price change caused 1 update; a stock change caused 1 stock call
+  - A simulated online sale was reported as a conflict, and the POS value was applied
+- [ ] Bulk operations for catalogs over 1,000 products, and reading only rows whose `fecha_mod` changed: mention in the video, not needed at 37 products
+- [ ] `/sync` Telegram command: moved to Phase 6 with the other Telegram commands
 
-**Done when** changing `existencia` in the POS shows up in Shopify within one cycle, and a second run changes nothing.
+**Done.**
 
 ## Phase 6: Things reviewers can test
 
+- [ ] `/sync` Telegram command for a manual run
 - [ ] Approve or reject a proposed mapping from Telegram (n8n inline buttons calling `/mappings/{id}/approve`)
 - [ ] **POS simulator:** a small page or a Telegram command that changes the price or stock of one product
 - [ ] **Bring your own data:** upload a CSV export from any POS (max 1 MB, 500 rows) and get an AI mapping plus a dry-run preview. It never writes to Shopify.

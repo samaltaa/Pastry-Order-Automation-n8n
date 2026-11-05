@@ -11,8 +11,21 @@ class UnknownTable(ValueError):
     pass
 
 
+def read_rows(conn: Connection, table: str, limit: int | None = None) -> list[dict]:
+    """Rows as dicts with every value as text, the same shape Claude saw when it proposed the mapping."""
+    query = sql.SQL("SELECT * FROM {}").format(sql.Identifier(POS_SCHEMA, table))
+    if limit:
+        query += sql.SQL(" LIMIT {}").format(sql.Literal(limit))
+    cursor = conn.execute(query)
+    names = [column.name for column in cursor.description]
+    return [
+        {name: None if value is None else str(value) for name, value in zip(names, row, strict=True)}
+        for row in cursor.fetchall()
+    ]
+
+
 def describe_table(conn: Connection, table: str) -> dict:
-    """Column names and types, plus sample rows with every value as text."""
+    """Column names and types, plus sample rows."""
     columns = conn.execute(
         """
         SELECT column_name, data_type
@@ -24,19 +37,8 @@ def describe_table(conn: Connection, table: str) -> dict:
     ).fetchall()
     if not columns:
         raise UnknownTable(f"No table '{POS_SCHEMA}.{table}'")
-
-    cursor = conn.execute(
-        sql.SQL("SELECT * FROM {} LIMIT {}").format(
-            sql.Identifier(POS_SCHEMA, table), sql.Literal(SAMPLE_ROWS)
-        )
-    )
-    names = [column.name for column in cursor.description]
-    rows = [
-        {name: None if value is None else str(value) for name, value in zip(names, row, strict=True)}
-        for row in cursor.fetchall()
-    ]
     return {
         "table": f"{POS_SCHEMA}.{table}",
         "columns": [{"name": name, "type": data_type} for name, data_type in columns],
-        "rows": rows,
+        "rows": read_rows(conn, table, SAMPLE_ROWS),
     }

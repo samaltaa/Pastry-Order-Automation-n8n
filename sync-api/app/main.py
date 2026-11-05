@@ -1,9 +1,11 @@
 import hmac
 from collections.abc import Callable
 from contextlib import asynccontextmanager
+from typing import Literal
 
 import anthropic
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 from pydantic import BaseModel
@@ -13,6 +15,7 @@ from app.config import Settings
 from app.llm import MappingFailed, log_call, propose_mapping, spent_today
 from app.pos import UnknownTable, describe_table
 from app.shopify import ShopifyClient
+from app.sync import NoApprovedMapping, SyncAlreadyRunning, run_sync
 
 SHOP_QUERY = """
 {
@@ -27,6 +30,12 @@ Mapper = Callable[[dict], tuple[mappings.Mapping, dict]]
 
 class ProposeRequest(BaseModel):
     table: str
+
+
+class SyncRequest(BaseModel):
+    table: str = "articulos"
+    dry_run: bool = False
+    trigger: Literal["manual", "schedule"] = "manual"
 
 
 def create_app(
@@ -160,5 +169,29 @@ def create_app(
                 (new_status, mapping_id),
             )
         return {"id": mapping_id, "status": new_status}
+
+    @app.post("/sync", dependencies=[Depends(require_api_key)])
+    def sync(body: SyncRequest, request: Request):
+        with request.app.state.pool.connection() as conn:
+            try:
+                return run_sync(
+                    conn,
+                    request.app.state.shopify,
+                    body.table,
+                    body.dry_run,
+                    body.trigger,
+                    settings.shopify_location_id,
+                )
+            except (NoApprovedMapping, SyncAlreadyRunning) as error:
+                raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get("/sync/runs", dependencies=[Depends(require_api_key)])
+    def sync_runs(request: Request, limit: int = 10):
+        with request.app.state.pool.connection() as conn:
+            return (
+                conn.cursor(row_factory=dict_row)
+                .execute("SELECT * FROM sync.runs ORDER BY id DESC LIMIT %s", (min(limit, 100),))
+                .fetchall()
+            )
 
     return app
