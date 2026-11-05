@@ -5,6 +5,10 @@ node_modules/
 .n8n/
 .DS_Store
 ops-api/dist/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
 
 # Private: job application material
 resume.yaml

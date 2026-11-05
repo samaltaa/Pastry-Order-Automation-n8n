@@ -34,6 +34,22 @@ services:
     ports:
       - "${API_PORT:-3001}:3001"
 
+  sync-api:
+    build:
+      context: .
+      dockerfile: sync-api/Dockerfile
+    container_name: pastry-sync-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pastry}:${POSTGRES_PASSWORD:-change_me}@postgres:5432/${POSTGRES_DB:-pastry_ops}
+    depends_on:
+      ops-api:
+        condition: service_healthy
+    ports:
+      - "${SYNC_PORT:-3003}:3002"
+
   n8n:
     image: n8nio/n8n:1.76.1
     container_name: pastry-n8n

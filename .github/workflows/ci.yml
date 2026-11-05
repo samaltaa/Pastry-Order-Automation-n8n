@@ -40,6 +40,35 @@ jobs:
           TEST_DATABASE_URL: postgresql://pastry:pastry@localhost:5432/pastry_test
       - run: docker build -f Dockerfile -t pastry-ops-api:ci ..
 
+  sync-api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: pastry_test
+          POSTGRES_USER: pastry
+          POSTGRES_PASSWORD: pastry
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pastry -d pastry_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: sync-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.4"
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+        env:
+          TEST_DATABASE_URL: postgresql://pastry:pastry@localhost:5432/pastry_test
+      - run: docker build -f Dockerfile -t pastry-sync-api:ci ..
+
   evals:
     needs: test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -67,7 +96,7 @@ jobs:
         run: echo "::warning::ANTHROPIC_API_KEY secret not set, evals skipped."
 
   deploy:
-    needs: [test, evals]
+    needs: [test, sync-api, evals]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production

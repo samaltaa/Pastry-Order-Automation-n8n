@@ -42,6 +42,24 @@ services:
       resources:
         limits: { cpus: "0.5", memory: 256M }
 
+  # Waits for ops-api, which applies all database migrations (including the sync schema).
+  sync-api:
+    build:
+      context: .
+      dockerfile: sync-api/Dockerfile
+    image: pastry-sync-api:latest
+    restart: unless-stopped
+    logging: *logging
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    depends_on:
+      ops-api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
   n8n:
     image: n8nio/n8n:1.76.1
     restart: unless-stopped
