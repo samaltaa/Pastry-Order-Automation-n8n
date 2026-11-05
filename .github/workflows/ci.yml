@@ -91,6 +91,15 @@ jobs:
         env:
           EVAL_MODES: routed
           EVAL_MIN_ACCURACY: "0.95"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.4"
+      - name: Mapping evals (fail below 90%)
+        if: env.ANTHROPIC_API_KEY != ''
+        working-directory: sync-api
+        run: uv sync --locked && uv run python -m evals.run_mapping
+        env:
+          EVAL_MIN_ACCURACY: "0.9"
       - name: Skip notice
         if: env.ANTHROPIC_API_KEY == ''
         run: echo "::warning::ANTHROPIC_API_KEY secret not set, evals skipped."

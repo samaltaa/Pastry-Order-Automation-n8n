@@ -64,24 +64,32 @@ A fake point-of-sale database for the pastry shop. It has no real client data, a
     - 429 and 5xx: exponential backoff
     - Gives up after 5 attempts
 - [x] `GET /health` (checks the database) and `GET /shopify/shop` (needs the API key) to check the connection
-- [x] 9 tests (7 Shopify client, 2 API); CI job `sync-api` runs ruff, pytest with Postgres and a Docker build, and deploys need it to pass
+- [x] Tests: Shopify client and API; CI job `sync-api` runs ruff, pytest with Postgres and a Docker build, and deploys need it to pass
 
 **Done.** `/health` is green in Docker; CI runs on the next push.
 
 ## Phase 4: AI mapping
 
-- [ ] Read the POS table structure plus about 20 sample rows
-- [ ] Claude returns a structured mapping, validated with Pydantic:
-  - The Shopify target for each column (title, SKU, price, inventory, product type, unit option, or ignore)
-  - The transform for each field (parse `RD$`, trim, upper-case codes, unit → variant option)
-  - A confidence score and a one-line reason
-- [ ] Low-confidence fields are flagged for review
-- [ ] Approve or reject the mapping: Telegram buttons through n8n, or one endpoint
-- [ ] Save as `mappings` version N. Only an approved version can sync.
-- [ ] Reuse the daily budget guard and log calls to `llm_calls`
-- [ ] Eval: 3 or 4 different POS layouts with known correct mappings; must score ≥ 90%
+- [x] `app/pos.py`: reads column names and types plus up to 50 sample rows. Only tables in the `pos` schema can be read, so customer and order data never reach Claude.
+- [x] `app/llm.py`: one Claude call (`claude-sonnet-5-5`) with structured output, checked against the Pydantic `Mapping` model. Claude returns:
+  - The Shopify target for each column, chosen from a fixed list (title, sku, price, cost, quantity, product_type, barcode, taxable, status, ignore)
+  - A transform for each column, chosen from a fixed list (money, integer, title_case, yes_no, active_status, inactive_status, ...)
+  - A confidence score and a plain-English reason
+  - The key column and any rows that aren't real products
+- [x] `app/mapping.py`: approval checks (every column mapped once, no duplicate targets, title/sku/price present). Fields below 0.8 confidence are flagged for review. The transforms are plain Python.
+- [x] Endpoints, all requiring the API key:
+  - `POST /mappings`: propose a mapping and return problems, fields to review, and a 5-row preview of the Shopify output
+  - `GET /mappings/{id}`
+  - `POST /mappings/{id}/approve` (refused while there are problems) and `/reject`
+- [x] Shares the daily AI budget with the bot: every call is logged to `llm_calls` as `sync/mapping`, and requests are refused once the budget is spent
+- [x] Eval (`evals/run_mapping.py`): four layouts (pastry shop, Square export, hardware store with two price lists, legacy system with an inverted flag), 69 checks
+  - **97.1%** on the first run, $0.06
+  - The one miss: the legacy `DISC` (discontinued) column was ignored instead of being mapped to status
+  - Runs in CI on `main`, and fails below 90%
+- [x] 39 tests
+- [ ] Approve or reject from Telegram (n8n buttons): moved to Phase 6
 
-**Done when** a messy table produces a correct, approved mapping.
+**Done.** Mapping #1 for `pos.articulos` has been proposed and is waiting for approval.
 
 ## Phase 5: Sync POS → Shopify (one direction)
 
@@ -98,6 +106,7 @@ A fake point-of-sale database for the pastry shop. It has no real client data, a
 
 ## Phase 6: Things reviewers can test
 
+- [ ] Approve or reject a proposed mapping from Telegram (n8n inline buttons calling `/mappings/{id}/approve`)
 - [ ] **POS simulator:** a small page or a Telegram command that changes the price or stock of one product
 - [ ] **Bring your own data:** upload a CSV export from any POS (max 1 MB, 500 rows) and get an AI mapping plus a dry-run preview. It never writes to Shopify.
 - [ ] Storefront password and the steps to try it, in the README

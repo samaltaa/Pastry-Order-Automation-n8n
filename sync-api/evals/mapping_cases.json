@@ -1,0 +1,1125 @@
+[
+ {
+  "name": "Pastry shop (Spanish, text prices)",
+  "table": {
+   "table": "pos.articulos",
+   "columns": [
+    {
+     "name": "codigo",
+     "type": "character varying"
+    },
+    {
+     "name": "descripcion",
+     "type": "character varying"
+    },
+    {
+     "name": "categoria",
+     "type": "character varying"
+    },
+    {
+     "name": "unidad",
+     "type": "character varying"
+    },
+    {
+     "name": "precio_venta",
+     "type": "character varying"
+    },
+    {
+     "name": "costo",
+     "type": "numeric"
+    },
+    {
+     "name": "existencia",
+     "type": "numeric"
+    },
+    {
+     "name": "itbis",
+     "type": "character"
+    },
+    {
+     "name": "activo",
+     "type": "character"
+    },
+    {
+     "name": "cod_barra",
+     "type": "character varying"
+    },
+    {
+     "name": "nota_interna",
+     "type": "text"
+    },
+    {
+     "name": "fecha_mod",
+     "type": "timestamp without time zone"
+    }
+   ],
+   "rows": [
+    {
+     "codigo": "REP-001",
+     "descripcion": "BIZCOCHO DOMINICANO VAINILLA 1LB",
+     "categoria": "BIZCOCHOS",
+     "unidad": "UND",
+     "precio_venta": "$24.00",
+     "costo": "9.50",
+     "existencia": "6.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100011",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-002",
+     "descripcion": "BIZCOCHO DOMINICANO CHOCOLATE 1LB",
+     "categoria": "BIZCOCHOS",
+     "unidad": "UND",
+     "precio_venta": "$26.00",
+     "costo": "10.20",
+     "existencia": "4.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100028",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-003",
+     "descripcion": "BIZC. DOM. VAINILLA 1/2 LB",
+     "categoria": "BIZCOCHOS",
+     "unidad": "UND",
+     "precio_venta": "13.5",
+     "costo": "5.10",
+     "existencia": "9.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100035",
+     "nota_interna": "pedir con 24h",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-004",
+     "descripcion": "BIZCOCHO RED VELVET 1LB",
+     "categoria": "BIZCOCHOS",
+     "unidad": "UND",
+     "precio_venta": "US$ 28.00",
+     "costo": "11.00",
+     "existencia": "3.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100042",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-005",
+     "descripcion": "BIZCOCHO ZANAHORIA C/ QUESO CREMA",
+     "categoria": "BIZCOCHOS",
+     "unidad": "UND",
+     "precio_venta": "$27.00",
+     "costo": "10.80",
+     "existencia": "2.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "rep-006 ",
+     "descripcion": "Bizcocho de naranja",
+     "categoria": "BIZCOCHOS",
+     "unidad": "UND",
+     "precio_venta": "22",
+     "costo": "8.40",
+     "existencia": "5.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "",
+     "nota_interna": "codigo viejo, no cambiar",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-011",
+     "descripcion": "TRES LECHES ENTERO 10\"",
+     "categoria": "POSTRES",
+     "unidad": "UND",
+     "precio_venta": "$32.00",
+     "costo": "12.50",
+     "existencia": "3.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100110",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-012",
+     "descripcion": "FLAN DE LECHE PORCION",
+     "categoria": "POSTRES",
+     "unidad": "PORC",
+     "precio_venta": "3.75",
+     "costo": "1.10",
+     "existencia": "20.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100127",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-013",
+     "descripcion": "FLAN DE COCO ENTERO",
+     "categoria": "POSTRES",
+     "unidad": "UND",
+     "precio_venta": "$19.00",
+     "costo": "6.80",
+     "existencia": "2.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-014",
+     "descripcion": "CHEESECAKE CHINOLA PORCION",
+     "categoria": "POSTRES",
+     "unidad": "PORC",
+     "precio_venta": "$5.25",
+     "costo": "2.00",
+     "existencia": "12.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100141",
+     "nota_interna": "chinola = maracuya",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-015",
+     "descripcion": "CHEESECAKE FRESA ENTERO",
+     "categoria": "POSTRES",
+     "unidad": "UND",
+     "precio_venta": "$36.00",
+     "costo": "14.00",
+     "existencia": "1.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100158",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-016",
+     "descripcion": "TARTA DE COCO",
+     "categoria": "POSTRES",
+     "unidad": "UND",
+     "precio_venta": "$21.00",
+     "costo": "7.90",
+     "existencia": "4.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100165",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-017",
+     "descripcion": "MAJARETE VASO",
+     "categoria": "POSTRES",
+     "unidad": "UND",
+     "precio_venta": "2.50",
+     "costo": "0.80",
+     "existencia": "15.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-018",
+     "descripcion": "HABICHUELAS C/ DULCE 16OZ",
+     "categoria": "POSTRES",
+     "unidad": "UND",
+     "precio_venta": "$6.00",
+     "costo": "2.10",
+     "existencia": "0.00",
+     "itbis": "S",
+     "activo": "N",
+     "cod_barra": "746000100189",
+     "nota_interna": "solo cuaresma",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-020",
+     "descripcion": "PAN DE AGUA",
+     "categoria": "PANADERIA",
+     "unidad": "UND",
+     "precio_venta": "0.35",
+     "costo": "0.09",
+     "existencia": "120.00",
+     "itbis": "N",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-021",
+     "descripcion": "PAN DE AGUA DOCENA",
+     "categoria": "PANADERIA",
+     "unidad": "DOC",
+     "precio_venta": "$3.90",
+     "costo": "1.05",
+     "existencia": "15.00",
+     "itbis": "N",
+     "activo": "S",
+     "cod_barra": "746000100219",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-022",
+     "descripcion": "PAN SOBAO",
+     "categoria": "PANADERIA",
+     "unidad": "UND",
+     "precio_venta": "0.50",
+     "costo": "0.14",
+     "existencia": "80.00",
+     "itbis": "N",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-023",
+     "descripcion": "CROISSANT MANTEQUILLA",
+     "categoria": "PANADERIA",
+     "unidad": "UND",
+     "precio_venta": "$2.25",
+     "costo": "0.70",
+     "existencia": "30.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100233",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-024",
+     "descripcion": "PAN DE QUESO",
+     "categoria": "PANADERIA",
+     "unidad": "UND",
+     "precio_venta": "1.75",
+     "costo": "0.55",
+     "existencia": "25.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100240",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-025",
+     "descripcion": "PAN INTEGRAL MOLDE",
+     "categoria": "PANADERIA",
+     "unidad": "UND",
+     "precio_venta": "$4.25",
+     "costo": "1.40",
+     "existencia": "10.00",
+     "itbis": "N",
+     "activo": "S",
+     "cod_barra": "746000100257",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-026",
+     "descripcion": "DONA GLASEADA",
+     "categoria": "PANADERIA",
+     "unidad": "UND",
+     "precio_venta": "1.25",
+     "costo": "0.35",
+     "existencia": "0.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": "agotado hoy",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-030",
+     "descripcion": "EMPANADA DE POLLO",
+     "categoria": "SALADOS",
+     "unidad": "UND",
+     "precio_venta": "$1.80",
+     "costo": "0.60",
+     "existencia": "40.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100301",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-031",
+     "descripcion": "EMPANADA DE QUESO",
+     "categoria": "SALADOS",
+     "unidad": "UND",
+     "precio_venta": "$1.60",
+     "costo": "0.50",
+     "existencia": "35.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100318",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-032",
+     "descripcion": "EMPANADA DE CARNE",
+     "categoria": "SALADOS",
+     "unidad": "UND",
+     "precio_venta": "1.80",
+     "costo": "0.62",
+     "existencia": "38.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100325",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-033",
+     "descripcion": "PASTELITO DE POLLO",
+     "categoria": "SALADOS",
+     "unidad": "UND",
+     "precio_venta": "1.50",
+     "costo": "0.45",
+     "existencia": "24.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-034",
+     "descripcion": "QUIPE",
+     "categoria": "SALADOS",
+     "unidad": "UND",
+     "precio_venta": "$1.50",
+     "costo": "0.48",
+     "existencia": "30.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100349",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-035",
+     "descripcion": "BANDEJA PICADERA 50 PZS",
+     "categoria": "SALADOS",
+     "unidad": "UND",
+     "precio_venta": "$45.00",
+     "costo": "18.00",
+     "existencia": "2.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100356",
+     "nota_interna": "para fiestas",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-040",
+     "descripcion": "GALLETAS MANTEQUILLA 12 UND",
+     "categoria": "GALLETAS",
+     "unidad": "UND",
+     "precio_venta": "$7.50",
+     "costo": "2.40",
+     "existencia": "14.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100400",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-041",
+     "descripcion": "GALLETAS CHOCOLATE CHIP",
+     "categoria": "GALLETAS",
+     "unidad": "LB",
+     "precio_venta": "$9.00",
+     "costo": "3.10",
+     "existencia": "8.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100417",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-042",
+     "descripcion": "POLVORONES",
+     "categoria": "GALLETAS",
+     "unidad": "DOC",
+     "precio_venta": "6",
+     "costo": "1.80",
+     "existencia": "10.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-043",
+     "descripcion": "ALFAJORES DULCE DE LECHE",
+     "categoria": "GALLETAS",
+     "unidad": "DOC",
+     "precio_venta": "$8.50",
+     "costo": "2.90",
+     "existencia": "6.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100431",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-050",
+     "descripcion": "CAFE AMERICANO",
+     "categoria": "BEBIDAS",
+     "unidad": "UND",
+     "precio_venta": "$1.75",
+     "costo": "0.30",
+     "existencia": "999.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": "no lleva inventario",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-051",
+     "descripcion": "CHOCOLATE CALIENTE",
+     "categoria": "BEBIDAS",
+     "unidad": "UND",
+     "precio_venta": "$2.50",
+     "costo": "0.55",
+     "existencia": "999.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": "no lleva inventario",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-052",
+     "descripcion": "JUGO DE CHINOLA 16OZ",
+     "categoria": "BEBIDAS",
+     "unidad": "UND",
+     "precio_venta": "$3.00",
+     "costo": "0.90",
+     "existencia": "20.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100523",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-060",
+     "descripcion": "VELA CUMPLEANOS NUMERO",
+     "categoria": "ACCESORIOS",
+     "unidad": "UND",
+     "precio_venta": "$1.00",
+     "costo": "0.25",
+     "existencia": "50.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100608",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-061",
+     "descripcion": "CAJA BIZCOCHO 10\"",
+     "categoria": "ACCESORIOS",
+     "unidad": "UND",
+     "precio_venta": "0.75",
+     "costo": "0.30",
+     "existencia": "100.00",
+     "itbis": "S",
+     "activo": "N",
+     "cod_barra": null,
+     "nota_interna": "uso interno, no vender",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-099",
+     "descripcion": "AJUSTE INVENTARIO",
+     "categoria": null,
+     "unidad": null,
+     "precio_venta": "0",
+     "costo": null,
+     "existencia": "0.00",
+     "itbis": "N",
+     "activo": "N",
+     "cod_barra": null,
+     "nota_interna": "articulo del sistema, ignorar",
+     "fecha_mod": "2026-11-05 16:44:01.872369"
+    },
+    {
+     "codigo": "REP-010",
+     "descripcion": "TRES LECHES PORCION",
+     "categoria": "POSTRES",
+     "unidad": "PORC",
+     "precio_venta": "$4.50",
+     "costo": "1.60",
+     "existencia": "18.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100103",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-05 16:44:02.806787"
+    }
+   ]
+  },
+  "key": [
+   "codigo"
+  ],
+  "expected": {
+   "codigo": "sku",
+   "descripcion": "title",
+   "categoria": "product_type",
+   "unidad": "ignore",
+   "precio_venta": "price",
+   "costo": "cost",
+   "existencia": "quantity",
+   "itbis": "taxable",
+   "activo": "status",
+   "cod_barra": "barcode",
+   "nota_interna": "ignore",
+   "fecha_mod": "ignore"
+  },
+  "transforms": {
+   "precio_venta": [
+    "money"
+   ],
+   "existencia": [
+    "integer"
+   ],
+   "itbis": [
+    "yes_no"
+   ],
+   "activo": [
+    "active_status"
+   ]
+  },
+  "excluded": [
+   "REP-099"
+  ]
+ },
+ {
+  "name": "Square-style export (English)",
+  "table": {
+   "table": "pos.square_export",
+   "columns": [
+    {
+     "name": "Token",
+     "type": "text"
+    },
+    {
+     "name": "Item Name",
+     "type": "text"
+    },
+    {
+     "name": "Description",
+     "type": "text"
+    },
+    {
+     "name": "Category",
+     "type": "text"
+    },
+    {
+     "name": "SKU",
+     "type": "text"
+    },
+    {
+     "name": "Price",
+     "type": "text"
+    },
+    {
+     "name": "Current Quantity Main Street",
+     "type": "text"
+    },
+    {
+     "name": "Enabled Main Street",
+     "type": "text"
+    },
+    {
+     "name": "Tax - Sales Tax (8.875%)",
+     "type": "text"
+    },
+    {
+     "name": "GTIN",
+     "type": "text"
+    }
+   ],
+   "rows": [
+    {
+     "Token": "QK7X2N4V",
+     "Item Name": "Almond Croissant",
+     "Description": "Flaky, filled with almond cream",
+     "Category": "Pastries",
+     "SKU": "PST-ALM-01",
+     "Price": "4.75",
+     "Current Quantity Main Street": "18",
+     "Enabled Main Street": "Y",
+     "Tax - Sales Tax (8.875%)": "Y",
+     "GTIN": "0084712300011"
+    },
+    {
+     "Token": "H2M9R8TP",
+     "Item Name": "Sourdough Loaf",
+     "Description": "Naturally leavened, 900g",
+     "Category": "Bread",
+     "SKU": "BRD-SDG-01",
+     "Price": "9.00",
+     "Current Quantity Main Street": "6",
+     "Enabled Main Street": "Y",
+     "Tax - Sales Tax (8.875%)": "N",
+     "GTIN": "0084712300028"
+    },
+    {
+     "Token": "Z8B1C5LW",
+     "Item Name": "Birthday Cake 8in",
+     "Description": "Vanilla sponge, buttercream",
+     "Category": "Cakes",
+     "SKU": "CAK-BDY-08",
+     "Price": "38.00",
+     "Current Quantity Main Street": "2",
+     "Enabled Main Street": "Y",
+     "Tax - Sales Tax (8.875%)": "Y",
+     "GTIN": ""
+    },
+    {
+     "Token": "P4N6D3KE",
+     "Item Name": "Gift Card $25",
+     "Description": "",
+     "Category": "Gift Cards",
+     "SKU": "GFT-025",
+     "Price": "25.00",
+     "Current Quantity Main Street": "",
+     "Enabled Main Street": "Y",
+     "Tax - Sales Tax (8.875%)": "N",
+     "GTIN": ""
+    },
+    {
+     "Token": "T1V7F2QA",
+     "Item Name": "Pumpkin Loaf (seasonal)",
+     "Description": "",
+     "Category": "Bread",
+     "SKU": "BRD-PMK-01",
+     "Price": "8.50",
+     "Current Quantity Main Street": "0",
+     "Enabled Main Street": "N",
+     "Tax - Sales Tax (8.875%)": "N",
+     "GTIN": "0084712300042"
+    },
+    {
+     "Token": "W5E2G9HU",
+     "Item Name": "Cold Brew 16oz",
+     "Description": "",
+     "Category": "Drinks",
+     "SKU": "DRK-CBR-16",
+     "Price": "5.25",
+     "Current Quantity Main Street": "40",
+     "Enabled Main Street": "Y",
+     "Tax - Sales Tax (8.875%)": "Y",
+     "GTIN": ""
+    }
+   ]
+  },
+  "key": [
+   "SKU"
+  ],
+  "expected": {
+   "Token": "ignore",
+   "Item Name": "title",
+   "Description": "ignore",
+   "Category": "product_type",
+   "SKU": "sku",
+   "Price": "price",
+   "Current Quantity Main Street": "quantity",
+   "Enabled Main Street": "status",
+   "Tax - Sales Tax (8.875%)": "taxable",
+   "GTIN": "barcode"
+  },
+  "transforms": {
+   "Enabled Main Street": [
+    "active_status"
+   ],
+   "Tax - Sales Tax (8.875%)": [
+    "yes_no"
+   ]
+  },
+  "excluded": []
+ },
+ {
+  "name": "Hardware store (two price lists)",
+  "table": {
+   "table": "pos.inv_articulos",
+   "columns": [
+    {
+     "name": "cod_art",
+     "type": "character varying"
+    },
+    {
+     "name": "nom_art",
+     "type": "character varying"
+    },
+    {
+     "name": "precio1",
+     "type": "numeric"
+    },
+    {
+     "name": "precio2",
+     "type": "numeric"
+    },
+    {
+     "name": "exist",
+     "type": "numeric"
+    },
+    {
+     "name": "costo_prom",
+     "type": "numeric"
+    },
+    {
+     "name": "unid_med",
+     "type": "character varying"
+    },
+    {
+     "name": "grava_itbis",
+     "type": "smallint"
+    },
+    {
+     "name": "estatus",
+     "type": "character"
+    },
+    {
+     "name": "depto",
+     "type": "character varying"
+    },
+    {
+     "name": "ult_compra",
+     "type": "date"
+    }
+   ],
+   "rows": [
+    {
+     "cod_art": "0001045",
+     "nom_art": "CEMENTO GRIS PORTLAND 42.5KG",
+     "precio1": "650.00",
+     "precio2": "610.00",
+     "exist": "1240.00",
+     "costo_prom": "548.30",
+     "unid_med": "FUNDA",
+     "grava_itbis": "1",
+     "estatus": "A",
+     "depto": "CEMENTOS",
+     "ult_compra": "2026-10-28"
+    },
+    {
+     "cod_art": "0001046",
+     "nom_art": "CEMENTO BLANCO 40KG",
+     "precio1": "1150.00",
+     "precio2": "1085.00",
+     "exist": "85.00",
+     "costo_prom": "960.10",
+     "unid_med": "FUNDA",
+     "grava_itbis": "1",
+     "estatus": "A",
+     "depto": "CEMENTOS",
+     "ult_compra": "2026-10-02"
+    },
+    {
+     "cod_art": "0002310",
+     "nom_art": "VARILLA 3/8 X 20 PIES GRADO 40",
+     "precio1": "395.00",
+     "precio2": "372.00",
+     "exist": "2100.00",
+     "costo_prom": "331.75",
+     "unid_med": "UND",
+     "grava_itbis": "1",
+     "estatus": "A",
+     "depto": "ACEROS",
+     "ult_compra": "2026-10-30"
+    },
+    {
+     "cod_art": "0002311",
+     "nom_art": "VARILLA 1/2 X 20 PIES GRADO 60",
+     "precio1": "690.00",
+     "precio2": "655.00",
+     "exist": "860.00",
+     "costo_prom": "588.00",
+     "unid_med": "UND",
+     "grava_itbis": "1",
+     "estatus": "A",
+     "depto": "ACEROS",
+     "ult_compra": "2026-10-30"
+    },
+    {
+     "cod_art": "0003001",
+     "nom_art": "BLOCK 6 PULG",
+     "precio1": "48.00",
+     "precio2": "45.00",
+     "exist": "15000.00",
+     "costo_prom": "36.20",
+     "unid_med": "UND",
+     "grava_itbis": "1",
+     "estatus": "A",
+     "depto": "BLOQUES",
+     "ult_compra": "2026-11-01"
+    },
+    {
+     "cod_art": "0004120",
+     "nom_art": "ARENA LAVADA",
+     "precio1": "2800.00",
+     "precio2": "2650.00",
+     "exist": "14.50",
+     "costo_prom": "2100.00",
+     "unid_med": "M3",
+     "grava_itbis": "0",
+     "estatus": "A",
+     "depto": "AGREGADOS",
+     "ult_compra": "2026-10-25"
+    },
+    {
+     "cod_art": "0005500",
+     "nom_art": "PINTURA ACRILICA BLANCA GALON",
+     "precio1": "1395.00",
+     "precio2": "1320.00",
+     "exist": "0.00",
+     "costo_prom": "1010.00",
+     "unid_med": "GALON",
+     "grava_itbis": "1",
+     "estatus": "I",
+     "depto": "PINTURAS",
+     "ult_compra": "2025-12-15"
+    },
+    {
+     "cod_art": "9999999",
+     "nom_art": "ARTICULO GENERICO",
+     "precio1": "0.00",
+     "precio2": "0.00",
+     "exist": "0.00",
+     "costo_prom": "0.00",
+     "unid_med": "UND",
+     "grava_itbis": "0",
+     "estatus": "A",
+     "depto": "SISTEMA",
+     "ult_compra": "2024-01-01"
+    }
+   ]
+  },
+  "key": [
+   "cod_art"
+  ],
+  "expected": {
+   "cod_art": "sku",
+   "nom_art": "title",
+   "precio1": "price",
+   "precio2": "ignore",
+   "exist": "quantity",
+   "costo_prom": "cost",
+   "unid_med": "ignore",
+   "grava_itbis": "taxable",
+   "estatus": "status",
+   "depto": "product_type",
+   "ult_compra": "ignore"
+  },
+  "transforms": {
+   "estatus": [
+    "active_status"
+   ],
+   "grava_itbis": [
+    "yes_no"
+   ],
+   "exist": [
+    "integer"
+   ]
+  },
+  "excluded": [
+   "9999999"
+  ]
+ },
+ {
+  "name": "Legacy fixed-width (inverted flag)",
+  "table": {
+   "table": "pos.ITMMST",
+   "columns": [
+    {
+     "name": "ITEMNO",
+     "type": "character"
+    },
+    {
+     "name": "DESC1",
+     "type": "character"
+    },
+    {
+     "name": "DESC2",
+     "type": "character"
+    },
+    {
+     "name": "PRC",
+     "type": "numeric"
+    },
+    {
+     "name": "QOH",
+     "type": "integer"
+    },
+    {
+     "name": "UPC",
+     "type": "character"
+    },
+    {
+     "name": "DEPT",
+     "type": "character"
+    },
+    {
+     "name": "TAXFLG",
+     "type": "character"
+    },
+    {
+     "name": "DISC",
+     "type": "character"
+    },
+    {
+     "name": "LSTCOST",
+     "type": "numeric"
+    },
+    {
+     "name": "VENDOR",
+     "type": "character"
+    }
+   ],
+   "rows": [
+    {
+     "ITEMNO": "10023     ",
+     "DESC1": "CHOC CHIP COOKIE DOZ      ",
+     "DESC2": "BOX 12CT  ",
+     "PRC": "11.99",
+     "QOH": "34",
+     "UPC": "071234500231",
+     "DEPT": "BAKERY",
+     "TAXFLG": "T",
+     "DISC": "N",
+     "LSTCOST": "4.10",
+     "VENDOR": "ACME BAKING"
+    },
+    {
+     "ITEMNO": "10024     ",
+     "DESC1": "OATMEAL RAISIN COOKIE DOZ ",
+     "DESC2": "BOX 12CT  ",
+     "PRC": "11.99",
+     "QOH": "12",
+     "UPC": "071234500248",
+     "DEPT": "BAKERY",
+     "TAXFLG": "T",
+     "DISC": "N",
+     "LSTCOST": "4.05",
+     "VENDOR": "ACME BAKING"
+    },
+    {
+     "ITEMNO": "20110     ",
+     "DESC1": "CHEESECAKE NY 9IN         ",
+     "DESC2": "WHOLE     ",
+     "PRC": "42.00",
+     "QOH": "3",
+     "UPC": "",
+     "DEPT": "CAKES",
+     "TAXFLG": "T",
+     "DISC": "N",
+     "LSTCOST": "17.50",
+     "VENDOR": "LOCAL DAIRY"
+    },
+    {
+     "ITEMNO": "20111     ",
+     "DESC1": "CHEESECAKE SLICE          ",
+     "DESC2": "          ",
+     "PRC": "5.50",
+     "QOH": "20",
+     "UPC": "",
+     "DEPT": "CAKES",
+     "TAXFLG": "T",
+     "DISC": "Y",
+     "LSTCOST": "1.95",
+     "VENDOR": "LOCAL DAIRY"
+    },
+    {
+     "ITEMNO": "30001     ",
+     "DESC1": "COFFEE BEANS 1LB HOUSE    ",
+     "DESC2": "WHOLE BEAN",
+     "PRC": "14.50",
+     "QOH": "25",
+     "UPC": "071234500910",
+     "DEPT": "GROCERY",
+     "TAXFLG": "F",
+     "DISC": "N",
+     "LSTCOST": "7.80",
+     "VENDOR": "ROASTCO"
+    },
+    {
+     "ITEMNO": "30002     ",
+     "DESC1": "MILK WHOLE GAL            ",
+     "DESC2": "          ",
+     "PRC": "5.29",
+     "QOH": "10",
+     "UPC": "070000000017",
+     "DEPT": "GROCERY",
+     "TAXFLG": "F",
+     "DISC": "Y",
+     "LSTCOST": "3.40",
+     "VENDOR": "LOCAL DAIRY"
+    }
+   ]
+  },
+  "key": [
+   "ITEMNO"
+  ],
+  "expected": {
+   "ITEMNO": "sku",
+   "DESC1": "title",
+   "DESC2": "ignore",
+   "PRC": "price",
+   "QOH": "quantity",
+   "UPC": "barcode",
+   "DEPT": "product_type",
+   "TAXFLG": "taxable",
+   "DISC": "status",
+   "LSTCOST": "cost",
+   "VENDOR": "ignore"
+  },
+  "transforms": {
+   "DISC": [
+    "inactive_status"
+   ],
+   "TAXFLG": [
+    "yes_no"
+   ],
+   "ITEMNO": [
+    "trim",
+    "trim_upper"
+   ],
+   "DESC1": [
+    "title_case",
+    "trim"
+   ]
+  },
+  "excluded": []
+ }
+]
