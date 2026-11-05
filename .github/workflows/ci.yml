@@ -1,0 +1,91 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: pastry_test
+          POSTGRES_USER: pastry
+          POSTGRES_PASSWORD: pastry
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pastry -d pastry_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: ops-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ops-api/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+        env:
+          TEST_DATABASE_URL: postgresql://pastry:pastry@localhost:5432/pastry_test
+      - run: docker build -f Dockerfile -t pastry-ops-api:ci ..
+
+  evals:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ops-api/package-lock.json
+      - run: npm ci
+        working-directory: ops-api
+      - name: Routed-model evals (fail below 95%)
+        if: env.ANTHROPIC_API_KEY != ''
+        working-directory: ops-api
+        run: node --import tsx ../evals/run.ts
+        env:
+          EVAL_MODES: routed
+          EVAL_MIN_ACCURACY: "0.95"
+      - name: Skip notice
+        if: env.ANTHROPIC_API_KEY == ''
+        run: echo "::warning::ANTHROPIC_API_KEY secret not set, evals skipped."
+
+  deploy:
+    needs: [test, evals]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+    steps:
+      - name: Skip notice
+        if: env.VPS_HOST == ''
+        run: echo "::warning::VPS secrets not set, deploy skipped."
+      - name: Deploy over SSH
+        if: env.VPS_HOST != ''
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+          ssh "$VPS_USER@$VPS_HOST" 'cd ~/pastry-ops && ./scripts/deploy.sh'

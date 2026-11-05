@@ -374,6 +374,9 @@ td:first-child { font-weight: 600; }
 .turns td:last-child { font: 7.8pt/1.4 var(--mono); color: var(--ink-soft); }
 @media (max-width: 760px) { .lifecycle { grid-template-columns: 1fr 1fr; } }
 
+
+/* ---------- Phase 2 pages ---------- */
+.cv .nd.bad .shape { stroke: #b8322a; stroke-width: 2.6; stroke-dasharray: 5 3; }
 /* ---------- n8n-style canvas ---------- */
 figure {
   margin: 3mm 0 6mm;
@@ -499,7 +502,7 @@ figcaption b { color: var(--ink); }
 
 <!-- ============ COVER ============ -->
 <section class="sheet cover">
-  <div class="masthead"><span>Pastry Ops · Field Manual</span><span>Issue 02 · Phase 1 edition · October 2026</span></div>
+  <div class="masthead"><span>Pastry Ops · Field Manual</span><span>Issue 03 · Phase 2 edition · October 2026</span></div>
 
   <h1>The Order Bot,<br><em>Explained.</em></h1>
   <p class="dek">How a Telegram message becomes a priced, saved pastry order. Where every piece lives, how to change it, and how to grow it, one node at a time.</p>
@@ -522,10 +525,16 @@ figcaption b { color: var(--ink); }
       <li><span>06</span><div>Changing the API<small>Routes, schemas, rebuilds</small></div></li>
       <li><span>07</span><div>The /start menu branch<small>How it's built, and how to rebuild it from scratch</small></div></li>
       <li><span>08</span><div>Operations<small>Daily commands, the tunnel, the danger zone</small></div></li>
-      <li><span>09</span><div>What to build next<small>Phase 1 done. Phase 2 is next</small></div></li>
+      <li><span>09</span><div>What to build next<small>Phases 1 and 2 built. Phase 3 is next</small></div></li>
       <li><span>10</span><div>Troubleshooting<small>Symptom, cause, fix</small></div></li>
       <li><span>11</span><div>The whole system<small>Every layer and part on one page</small></div></li>
       <li><span>12</span><div>Conversation memory<small>How the bot remembers each customer</small></div></li>
+      <li><span>13</span><div>Production<small>The VPS, guards, alerts, backups and CI/CD</small></div></li>
+      <li><span>14</span><div>Guards<small>Rate limit and daily AI budget</small></div></li>
+      <li><span>15</span><div>Alerts<small>Uptime Kuma and the error workflow</small></div></li>
+      <li><span>16</span><div>Backups<small>Nightly dumps, off-site copies, restores</small></div></li>
+      <li><span>17</span><div>Deploys<small>Tests, evals, SSH deploy, migrations</small></div></li>
+      <li><span>18</span><div>The server<small>Firewall, SSH, Caddy, the stack</small></div></li>
     </ol>
   </div>
 </section>
@@ -644,7 +653,7 @@ figcaption b { color: var(--ink); }
     <div class="layer">
       <div><span class="tagline">Layer 3 · AI</span><b>Grounded extraction</b></div>
       <div>Claude structured outputs (a Zod schema) and the live menu in the prompt. The model maps words to <code>item_id</code>s and never sees a price. <b>Rules in code</b> handle off-menu items, ambiguity, quantities from 1 to 100, delivery between 08:00 and 18:00, at least 2 hours' notice and at most 14 days ahead. Haiku runs first, and Sonnet only steps in when code detects a model fault.</div>
-      <div class="where">src/llm/extract.ts<br>src/rules.ts<br>POST /llm/extract-order</div>
+      <div class="where">src/llm/extract.ts<br>src/services/rules.ts<br>POST /llm/extract-order</div>
     </div>
     <div class="layer">
       <div><span class="tagline">Layer 2 · Reliability</span><b>Exactly-once and no silence</b></div>
@@ -654,12 +663,12 @@ figcaption b { color: var(--ink); }
     <div class="layer">
       <div><span class="tagline">Layer 1 · Security</span><b>Two locked doors</b></div>
       <div>Telegram must present the secret token. n8n must present <code>OPS_API_KEY</code> to the API, and anything else gets a 401. Customer text is wrapped and treated as data, so injection attempts can't change rules or prices.</div>
-      <div class="where">Verify Telegram update<br>x-api-key hook in server.ts</div>
+      <div class="where">Verify Telegram update<br>x-api-key hook in app.ts</div>
     </div>
     <div class="layer core">
       <div><span class="tagline">MVP core (unchanged)</span><b>Message → order</b></div>
       <div>Telegram webhook → n8n → ops-api → Postgres. Prices come from the menu table, totals are computed in code, and Postgres is the source of truth.</div>
-      <div class="where">docker-compose.yml<br>db/001_init.sql<br>POST /orders</div>
+      <div class="where">docker-compose.yml<br>db/migrations/<br>POST /orders</div>
     </div>
   </div>
 
@@ -697,24 +706,32 @@ figcaption b { color: var(--ink); }
     <div>├─ claude.md<span>The three-phase roadmap and working rules (private).</span></div>
     <div>├─ README.md · overview.html<span>Project write-up, including Phase 1 results.</span></div>
     <div>├─ instructions_docs.html<span>This manual.</span></div>
-    <div><b class="d">├─ db/</b><span>Runs in name order, only when the database is empty.</span></div>
-    <div>│  ├─ 001_init.sql<span>Tables and the starter menu.</span></div>
-    <div>│  └─ 002_phase1.sql<span>The <code>llm_calls</code> table and indexes. Safe to re-run.</span></div>
+    <div><b class="d">├─ db/</b><span>Applied by ops-api on every start, each migration once.</span></div>
+    <div>│  ├─ migrations/001…004<span>Numbered schema changes, tracked in <code>schema_migrations</code>.</span></div>
+    <div>│  └─ seed.sql<span>The starter menu. Only fills an empty <code>menu_items</code>.</span></div>
     <div><b class="d">├─ n8n/workflows/</b><span></span></div>
-    <div>│  ├─ order-intake.json<span>Live copy of "Order intake" (ID <code>pastryOrderIntake</code>), 14 nodes.</span></div>
-    <div>│  └─ daily-prep-list.json<span>"Daily prep list" (ID <code>pastryDailyPrepList</code>), 6am.</span></div>
+    <div>│  ├─ order-intake.json<span>Live copy of "Order intake" (ID <code>pastryOrderIntake</code>), 16 nodes.</span></div>
+    <div>│  ├─ daily-prep-list.json<span>"Daily prep list" (ID <code>pastryDailyPrepList</code>), 6am.</span></div>
+    <div>│  └─ error-alert.json<span>"Error alert" (ID <code>pastryErrorAlert</code>): Telegram alert on any failed run.</span></div>
     <div><b class="d">├─ evals/</b><span></span></div>
-    <div>│  ├─ cases.jsonl<span>30 test messages with their expected results.</span></div>
+    <div>│  ├─ cases.jsonl<span>40 test cases, 10 of them multi-turn.</span></div>
     <div>│  ├─ run.ts<span>Scores three model modes on accuracy and cost.</span></div>
     <div>│  └─ results.md<span>The latest scorecard.</span></div>
-    <div><b class="d">├─ docs/decisions/</b><span></span></div>
-    <div>│  └─ 001-model-choice.md<span>Why Haiku is the default and Sonnet the fallback.</span></div>
+    <div><b class="d">├─ docs/</b><span></span></div>
+    <div>│  ├─ runbook.md<span>Server setup and operations, step by step (§13).</span></div>
+    <div>│  └─ decisions/001-model-choice.md<span>Why Haiku is the default and Sonnet the fallback.</span></div>
+    <div><b class="d">├─ deploy/</b><span>provision.sh (VPS hardening) · Caddyfile (HTTPS).</span></div>
+    <div><b class="d">├─ scripts/</b><span>deploy · backup · restore · setup-n8n.</span></div>
+    <div>├─ docker-compose.prod.yml<span>The production stack: adds Caddy and Uptime Kuma, exposes only 80/443.</span></div>
+    <div>├─ .github/workflows/ci.yml<span>Tests, evals and deploy on every push to main.</span></div>
     <div><b class="d">└─ ops-api/</b><span></span></div>
-    <div>   ├─ src/server.ts<span>Routes, auth hook, SQL.</span></div>
+    <div>   ├─ src/server.ts · app.ts<span>Startup (migrations, shutdown) and the app: auth hook, errors, routes.</span></div>
+    <div>   ├─ src/routes/<span>system · llm · orders · reports. Thin HTTP handlers.</span></div>
+    <div>   ├─ src/services/<span>rules · orders (pricing) · guards (limits) · conversation · menu.</span></div>
     <div>   ├─ src/llm/extract.ts<span>Claude call, schema, prompt, model routing, cost.</span></div>
-    <div>   ├─ src/rules.ts<span>Business rules: hours, lead time, quantities, menu checks.</span></div>
-    <div>   ├─ package.json<span>Fastify, pg, Zod 4, Anthropic SDK, dotenv.</span></div>
-    <div>   └─ Dockerfile · .dockerignore<span>node:20-alpine, runs TypeScript with tsx.</span></div>
+    <div>   ├─ src/db/migrate.ts<span>Applies new files in <span class="path">db/migrations</span> at startup.</span></div>
+    <div>   ├─ test/<span>Unit tests, plus API tests against a real Postgres.</span></div>
+    <div>   └─ Dockerfile<span>Two stages: compile TypeScript, then a small production image.</span></div>
   </div>
 
   <div class="box where">
@@ -724,7 +741,7 @@ figcaption b { color: var(--ink); }
       <li><b>The Telegram credential</b> is "Pastry Telegram bot", stored encrypted in n8n.</li>
       <li><b>Menu rows, customers and orders</b> are in the <code>postgres_data</code> Docker volume.</li>
       <li><b>n8n settings</b> are in the <code>n8n_data</code> volume.</li>
-      <li><b>The public URL</b> only shows up in the cloudflared logs, and it changes on every restart.</li>
+      <li><b>The public URL</b> on your laptop only shows up in the cloudflared logs and changes on every restart. On the VPS it's your permanent <code>N8N_DOMAIN</code>.</li>
       <li><b>The Telegram webhook registration</b> is stored on Telegram's servers. Check it with <code>getWebhookInfo</code>.</li>
     </ul>
   </div>
@@ -734,15 +751,16 @@ figcaption b { color: var(--ink); }
     <thead><tr><th>I want to change…</th><th>Go to</th><th>Then</th></tr></thead>
     <tbody>
       <tr><td>A price, dish name, or what's on sale</td><td>The <code>menu_items</code> table in Postgres (§04)</td><td>Nothing. The next message uses it.</td></tr>
-      <tr><td>The starter menu for a fresh install</td><td><span class="path">db/001_init.sql</span></td><td>Only takes effect on an empty database.</td></tr>
+      <tr><td>The starter menu for a fresh install</td><td><span class="path">db/seed.sql</span></td><td>Only takes effect on an empty menu.</td></tr>
       <tr><td>What the bot says or how messages route</td><td>The n8n editor, workflow "Order intake" (§05)</td><td>Save, then Download to <span class="path">n8n/workflows/</span> and commit.</td></tr>
-      <tr><td>How orders are validated or priced</td><td><span class="path">ops-api/src/server.ts</span> (§06)</td><td><code>docker compose up -d --build ops-api</code></td></tr>
+      <tr><td>How orders are validated or priced</td><td><span class="path">ops-api/src/services/orders.ts</span> (§06)</td><td><code>docker compose up -d --build ops-api</code></td></tr>
       <tr><td>How text becomes an order (the LLM)</td><td>The prompt and schema in <span class="path">src/llm/extract.ts</span></td><td>Run the eval, then rebuild ops-api.</td></tr>
-      <tr><td>Opening hours, lead time, max quantity</td><td>The constants at the top of <span class="path">src/rules.ts</span></td><td>Run the eval, then rebuild ops-api.</td></tr>
+      <tr><td>Opening hours, lead time, max quantity</td><td>The constants at the top of <span class="path">src/services/rules.ts</span></td><td>Run the eval, then rebuild ops-api.</td></tr>
       <tr><td>Which model runs</td><td><code>ANTHROPIC_MODEL_FAST</code> / <code>_STRONG</code> in <span class="path">.env</span></td><td>Run the eval with the new model first. Then <code>docker compose up -d</code>.</td></tr>
       <tr><td>Secrets, keys, ports, the model</td><td><span class="path">.env</span> (and <span class="path">.env.example</span> for new variable names)</td><td><code>docker compose up -d</code> to recreate the affected containers.</td></tr>
       <tr><td>Services, ports, volumes, n8n settings</td><td><span class="path">docker-compose.yml</span></td><td><code>docker compose up -d</code></td></tr>
-      <tr><td>The database tables</td><td>A new numbered file in <span class="path">db/</span>, applied once with psql</td><td>Fresh installs pick it up automatically.</td></tr>
+      <tr><td>The database tables</td><td>A new numbered file in <span class="path">db/migrations/</span></td><td>Rebuild ops-api. It applies the file once on start.</td></tr>
+      <tr><td>Rate limit or daily AI budget</td><td><code>CHAT_RATE_LIMIT_PER_MINUTE</code> / <code>DAILY_LLM_BUDGET_USD</code> in <span class="path">.env</span></td><td><code>docker compose up -d ops-api</code></td></tr>
       <tr><td>The bot's name, picture or command list</td><td>@BotFather in Telegram</td><td>Takes effect immediately.</td></tr>
     </tbody>
   </table>
@@ -923,7 +941,7 @@ figcaption b { color: var(--ink); }
 
   <div class="cols">
     <p class="dropcap">Your dishes live in the <code>menu_items</code> table of the <code>pastry_ops</code> database. Two parts of the code read it. <code>GET /menu</code> returns the active dishes for the <code>/start</code> reply. <code>POST /llm/extract-order</code> loads them for Claude's prompt (names and IDs only, never prices). <code>POST /orders</code> looks up prices by ID when it computes a total. Because both read the table on every request, <b>a change takes effect on the next message</b>. You don't need to restart, rebuild or re-import anything.</p>
-    <p>The six starter dishes came from the end of <span class="path">db/001_init.sql</span>. That file only runs the first time Postgres starts with an empty volume. Editing it now won't change your running menu. It only changes what a <i>fresh</i> install starts with.</p>
+    <p>The six starter dishes come from <span class="path">db/seed.sql</span>. It only fills the menu when <code>menu_items</code> is empty. Editing it now won't change your running menu. It only changes what a <i>fresh</i> install starts with.</p>
 
     <h4>The columns</h4>
     <table>
@@ -970,7 +988,7 @@ UPDATE menu_items SET is_active = false WHERE id = 5;</div>
       <h4>Old orders keep old prices</h4>
       <p>When an order is created, each line copies the price at that moment into <code>order_items.unit_price</code>. A price change only affects new orders.</p>
     </div>
-    <p>Want a fresh install to start with your real menu? Make the same change to the <code>INSERT</code> at the bottom of <span class="path">db/001_init.sql</span> and commit it. The course plan moves this into <span class="path">db/seed.sql</span> later.</p>
+    <p>Want a fresh install to start with your real menu? Make the same change to the <code>VALUES</code> list in <span class="path">db/seed.sql</span> and commit it.</p>
   </div>
 </section>
 
@@ -1026,23 +1044,24 @@ UPDATE menu_items SET is_active = false WHERE id = 5;</div>
   <h2>Changing the API</h2>
   <p class="standfirst">Every rule that touches money lives in one TypeScript file. Edit it, rebuild one container, and test with the browser or curl.</p>
 
-  <h3>The three files of ops-api</h3>
+  <h3>How ops-api is organised</h3>
   <table>
     <thead><tr><th style="width:24%">File</th><th style="width:30%">Piece</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td rowspan="2">src/server.ts</td><td>Setup, auth hook, error handler</td><td>Refuses to start without <code>OPS_API_KEY</code>. Every route except <code>/health</code> needs <code>x-api-key</code>. Zod errors become 400s with a list of issues.</td></tr>
-      <tr><td>Routes</td><td><code>GET /health</code> · <code>GET /menu</code> · <code>POST /updates/claim</code> · <code>POST /llm/extract-order</code> · <code>POST /orders</code> (idempotent, one transaction) · <code>GET /orders/:id</code> · <code>POST /orders/:id/status</code> (a fixed set of statuses) · <code>GET /reports/prep-list</code> · <code>GET /reports/llm-usage</code></td></tr>
+      <tr><td>src/server.ts · app.ts</td><td>Startup, auth hook, error handler</td><td>Runs migrations, then listens. Refuses to start without <code>OPS_API_KEY</code>. Every route except <code>/health</code> needs <code>x-api-key</code> (compared in constant time). Zod errors become 400s with a list of issues.</td></tr>
+      <tr><td>src/routes/</td><td>Routes</td><td><code>GET /health</code> · <code>GET /menu</code> · <code>POST /updates/claim</code> · <code>POST /events</code> · <code>POST /conversations/reset</code> · <code>POST /llm/extract-order</code> · <code>POST /orders</code> (idempotent, one transaction) · <code>GET /orders/:id</code> · <code>POST /orders/:id/status</code> · <code>GET /reports/prep-list</code> · <code>GET /reports/llm-usage</code> · <code>GET /reports/events</code></td></tr>
+      <tr><td>src/services/orders.ts · guards.ts</td><td>Pricing and limits</td><td><code>priceOrder()</code> totals in cents from database prices. <code>guardViolation()</code> applies the per-chat rate limit and the daily AI budget before Claude is called.</td></tr>
       <tr><td rowspan="3">src/llm/extract.ts</td><td>Schema and prompt</td><td>A Zod schema passed to Claude structured outputs. The prompt holds the menu (IDs and names), the local time, and the rule that customer text is data.</td></tr>
       <tr><td>Routing</td><td>Tries <code>ANTHROPIC_MODEL_FAST</code>, then <code>ANTHROPIC_MODEL_STRONG</code> on an API error, a refusal, an unknown ID, a malformed time, or low confidence on a draft that would otherwise be accepted.</td></tr>
       <tr><td>Cost</td><td><code>PRICES_PER_MTOK</code>. Update it when prices change.</td></tr>
-      <tr><td>src/rules.ts</td><td>Business rules</td><td><code>OPEN_HOUR</code> 8, <code>CLOSE_HOUR</code> 18, <code>MIN_LEAD_HOURS</code> 2, <code>MAX_DAYS_AHEAD</code> 14, <code>MAX_QUANTITY</code> 100, in Santo Domingo time. Produces the clarification text for policy violations.</td></tr>
+      <tr><td>src/services/rules.ts</td><td>Business rules</td><td><code>OPEN_HOUR</code> 8, <code>CLOSE_HOUR</code> 18, <code>MIN_LEAD_HOURS</code> 2, <code>MAX_DAYS_AHEAD</code> 14, <code>MAX_QUANTITY</code> 100, in Santo Domingo time. Produces the clarification text for policy violations.</td></tr>
     </tbody>
   </table>
 
   <div class="cols">
     <h3>The edit loop</h3>
     <div class="cmd"><span class="c"># 1. type-check</span>
-cd ops-api &amp;&amp; npx tsc --noEmit &amp;&amp; cd ..
+cd ops-api &amp;&amp; npm run typecheck &amp;&amp; npm test &amp;&amp; cd ..
 
 <span class="c"># 2. rebuild and restart only the API</span>
 docker compose up -d --build ops-api
@@ -1286,35 +1305,37 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
 <!-- ============ 09 NEXT ============ -->
 <section class="sheet">
   <p class="kicker">09 · Roadmap</p>
-  <h2>Phase 1 done. Phase 2 is next</h2>
-  <p class="standfirst">Every Phase 1 step in <span class="path">claude.md</span> is done and verified. Phase 2 puts the system on a server that a stranger can reach at any hour.</p>
+  <h2>Phases 1 and 2 built. Phase 3 is next</h2>
+  <p class="standfirst">Every Phase 1 step is done and verified. Phase 2 is built and tested locally (§13). It goes live once the server, domain and storage accounts exist, following <span class="path">docs/runbook.md</span>.</p>
 
   <table>
     <thead><tr><th style="width:28%">Phase 1 step</th><th style="width:16%">Status</th><th>Evidence</th></tr></thead>
     <tbody>
       <tr><td>1 · Route commands before the LLM</td><td>Done</td><td>Route command Switch. <code>/start</code> creates no order.</td></tr>
       <tr><td>2 · Claude structured extraction</td><td>Done</td><td><span class="path">src/llm/extract.ts</span>, Zod schema, menu grounding.</td></tr>
-      <tr><td>3 · Validation in code</td><td>Done</td><td><span class="path">src/rules.ts</span>. Off-menu requests get a question, never an invented item.</td></tr>
+      <tr><td>3 · Validation in code</td><td>Done</td><td><span class="path">src/services/rules.ts</span>. Off-menu requests get a question, never an invented item.</td></tr>
       <tr><td>4 · Dedupe and error replies</td><td>Done</td><td>A replayed update created no second order (tested). Apology on errors (tested).</td></tr>
       <tr><td>5 · LLM call log</td><td>Done</td><td><code>llm_calls</code> and <code>/reports/llm-usage</code>.</td></tr>
-      <tr><td>6 · Evals</td><td>Done</td><td>30/30 on all three modes. Injection cases 5/5.</td></tr>
-      <tr><td>7 · Model routing and ADR</td><td>Done</td><td>Haiku by default at $0.0002 per order. <span class="path">docs/decisions/001-model-choice.md</span>.</td></tr>
-      <tr><td>8 · Daily prep list</td><td>Done*</td><td>Active at 6am. *Waiting on <code>OWNER_TELEGRAM_CHAT_ID</code>.</td></tr>
+      <tr><td>6 · Evals</td><td>Done</td><td>40/40 on all three modes, including 10 multi-turn. Injection cases 5/5.</td></tr>
+      <tr><td>7 · Model routing and ADR</td><td>Done</td><td>Haiku by default at $0.0003 per order. <span class="path">docs/decisions/001-model-choice.md</span>.</td></tr>
+      <tr><td>8 · Daily prep list</td><td>Done</td><td>Active at 6am, sent to the owner chat.</td></tr>
+    </tbody>
+  </table>
+
+  <table>
+    <thead><tr><th style="width:28%">Phase 2 step</th><th style="width:16%">Status</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>1 · Hardened VPS</td><td>Script ready</td><td><span class="path">deploy/provision.sh</span>. Runs once you create the server.</td></tr>
+      <tr><td>2 · Production compose + Caddy</td><td>Tested locally</td><td>All 5 services healthy, HTTPS, security headers, no public API or DB port.</td></tr>
+      <tr><td>3 · Rate limit and spend cap</td><td>Done</td><td>The 7th message in a minute got the "wait" reply without calling Claude.</td></tr>
+      <tr><td>4 · Backups and restore</td><td>Tested locally</td><td>Dump verified and restored into a scratch database. Off-site copy needs a bucket.</td></tr>
+      <tr><td>5 · Monitoring and alerts</td><td>Done*</td><td>A forced failure sent the Telegram alert. *Kuma monitors are set up on the server.</td></tr>
+      <tr><td>6 · Tests and CI/CD</td><td>Done*</td><td>23 tests passing. *Deploy runs once the GitHub secrets are added.</td></tr>
+      <tr><td>7 · API structure</td><td>Done</td><td><span class="path">routes/</span>, <span class="path">services/</span>, <span class="path">db/</span>, migrations in <span class="path">db/migrations/</span>.</td></tr>
     </tbody>
   </table>
 
   <div class="cols">
-    <div class="box">
-      <h4>Phase 2 — ship it</h4>
-      <ul>
-        <li>A hardened VPS: SSH keys only, ufw, fail2ban.</li>
-        <li><span class="path">docker-compose.prod.yml</span> and Caddy with TLS on your own domain. This replaces the tunnel-URL routine.</li>
-        <li>Per-chat rate limits and a daily LLM spend cap read from <code>llm_calls</code>.</li>
-        <li>Nightly <code>pg_dump</code> offsite, and a tested restore.</li>
-        <li>Uptime Kuma, plus an n8n error workflow that sends a Telegram alert.</li>
-        <li>Tests and GitHub Actions: type-check, tests, evals, deploy.</li>
-      </ul>
-    </div>
     <div class="box where">
       <h4>Phase 3 — agency fit</h4>
       <p>A Shopify dev-store workflow with a CRM sync and a "where is my order?" agent, an MCP server, a Make scenario, a voice agent, an OpenRouter option in the eval, workflow docs, and the README rewritten as a case study with a 2-minute video.</p>
@@ -1345,13 +1366,13 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
       <tr><td>The prep list never arrives</td><td><code>OWNER_TELEGRAM_CHAT_ID</code> is still <code>replace_me</code>.</td><td>Set it in <span class="path">.env</span>, then run <code>docker compose up -d n8n</code>.</td></tr>
       <tr><td>The customer gets six messages</td><td>A Telegram node runs once per item.</td><td>Put an Aggregate node in front of it (§07).</td></tr>
       
-      <tr><td>A menu change doesn't show up</td><td>You edited <span class="path">db/001_init.sql</span>, not the database.</td><td>Change the row in psql (§04).</td></tr>
+      <tr><td>A menu change doesn't show up</td><td>You edited <span class="path">db/seed.sql</span>, not the database.</td><td>Change the row in psql (§04).</td></tr>
       <tr><td>Editor edits don't appear in git</td><td>The live workflow and the file don't sync.</td><td>Use <i>⋯ → Download</i> over the JSON file and commit.</td></tr>
       <tr><td>PostHog 401 errors in the n8n logs</td><td>n8n's telemetry.</td><td>Already silenced with <code>N8N_DIAGNOSTICS_ENABLED=false</code> in compose. If you see it again, that setting was lost.</td></tr>
     </tbody>
   </table>
 
-  <p class="colophon">Pastry Ops Field Manual · Issue 01 · October 2026. Issue 02 describes the system after Phase 1: Claude extraction, rules in code, dedupe, error replies, cost logging, evals and the daily prep list. To print: open in Chrome, Ctrl+P, A4, margins Default, Background graphics on.</p>
+  <p class="colophon">Pastry Ops Field Manual · Issue 01 · October 2026. Issue 02 added Phase 1: Claude extraction, rules in code, dedupe, error replies, cost logging, evals and the daily prep list. Issue 03 adds Phase 2: the production server, guards, alerts, backups and CI/CD. To print: open in Chrome, Ctrl+P, A4, margins Default, Background graphics on.</p>
 </section>
 
 <!-- ============ 11 THE WHOLE SYSTEM ============ -->
@@ -1445,11 +1466,11 @@ last_message · updated_at</div>
     <div class="box where">
       <h4>Where it lives</h4>
       <ul>
-        <li><span class="path">ops-api/src/conversation.ts</span>: history limit, 2-hour expiry, <code>advance()</code></li>
+        <li><span class="path">ops-api/src/services/conversation.ts</span>: history limit, 2-hour expiry, <code>advance()</code></li>
         <li><span class="path">src/llm/extract.ts</span>: draft and conversation in the prompt, treated as data</li>
-        <li><span class="path">src/rules.ts</span>: the saved-address offer</li>
-        <li><span class="path">src/server.ts</span>: lock, load, save, reset, and clear on order</li>
-        <li><span class="path">db/003_conversations.sql</span>: unique <code>chat_id</code>, <code>customers.last_address</code></li>
+        <li><span class="path">src/services/rules.ts</span>: the saved-address offer</li>
+        <li><span class="path">src/routes/llm.ts</span>: lock, load and save. <span class="path">services/orders.ts</span>: clear on order</li>
+        <li><span class="path">db/migrations/003_conversations.sql</span>: unique <code>chat_id</code>, <code>customers.last_address</code></li>
         <li><span class="path">evals/cases.jsonl</span>: 10 multi-turn cases <code>mt-01…mt-10</code>, 10/10 passing</li>
       </ul>
     </div>
@@ -1457,7 +1478,375 @@ last_message · updated_at</div>
       <h4>Things to know</h4>
       <ul>
         <li>The lock holds a database connection during the Claude call (about 2 s). That's fine at bakery scale. At high volume, the next step is a queue per chat.</li>
-        <li>Tune <code>HISTORY_LIMIT</code> and <code>STATE_TTL_HOURS</code> in <span class="path">conversation.ts</span>, then run the eval.</li>
+        <li>Tune <code>HISTORY_LIMIT</code> and <code>STATE_TTL_HOURS</code> in <span class="path">services/conversation.ts</span>, then run the eval.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 13 PRODUCTION ============ -->
+<section class="sheet">
+  <p class="kicker">13 · Production</p>
+  <h2>Running for real, on a server</h2>
+  <p class="standfirst">Phase 2 moves the bot from your laptop and a temporary tunnel to a hardened VPS with a permanent address. It runs around the clock, protects your AI bill, tells you when something breaks, backs itself up every night, and deploys itself when you push to <code>main</code>.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 580" role="img" aria-label="Production topology: Telegram and browsers reach Caddy on the VPS, which proxies to n8n and Uptime Kuma; ops-api and Postgres stay on the internal Docker network; cron backups go to object storage; GitHub Actions deploys over SSH"><g class="sub repo"><rect x="10" y="10" width="165" height="560" rx="10"/><text class="slabel" x="22" y="26">OUTSIDE</text><text class="zdesc" x="76.19999999999999" y="26"></text></g><g class="zone core"><rect x="190" y="10" width="440" height="560" rx="12"/><text class="ztag" x="204" y="27">VPS · UBUNTU 24.04</text><text class="zdesc" x="345.20000000000005" y="27">ufw: 22 · 80 · 443</text></g><g class="sub api"><rect x="205" y="48" width="410" height="360" rx="10"/><text class="slabel" x="217" y="64">DOCKER NETWORK</text><text class="zdesc" x="317.4" y="64">only Caddy publishes ports</text></g><g class="sub pg"><rect x="205" y="424" width="410" height="132" rx="10"/><text class="slabel" x="217" y="440">HOST</text><text class="zdesc" x="251.4" y="440">cron + scripts</text></g><g class="sub ext"><rect x="645" y="10" width="225" height="560" rx="10"/><text class="slabel" x="657" y="26">CLOUD SERVICES</text><text class="zdesc" x="757.4" y="26"></text></g><path class="e flow" d="M118 208 C170 208, 180 178, 221 178"/><path class="e flow" d="M118 328 C170 328, 180 178, 221 178"/><path class="e flow" d="M281 178 C320 178, 320 98, 356 98"/><path class="e flow" d="M253 240 V296"/><path class="e call" d="M416 98 H506"/><path class="e call" d="M566 98 H726"/><path class="e db" d="M416 98 C460 98, 460 278, 506 278"/><path class="e db" d="M538 158 V246"/><path class="e err" d="M281 320 C420 320, 500 220, 515 162"/><path class="e err" d="M221 328 C190 328, 190 88, 118 88"/><path class="e err" d="M388 66 C388 30, 200 40, 118 80"/><path class="e call" d="M118 478 C200 478, 220 498, 296 498"/><path class="e db" d="M538 342 C538 410, 498 420, 498 466"/><path class="e flow" d="M526 498 H726"/><g class="nd" transform="translate(62,60)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-user" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Owner</text><text class="ns2" x="28" y="82">Telegram alerts</text></g><g class="nd" transform="translate(62,180)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Customer</text><text class="ns2" x="28" y="82">Telegram webhook</text></g><g class="nd" transform="translate(62,300)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">You</text><text class="ns2" x="28" y="82">browser</text></g><g class="nd new" transform="translate(62,450)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-bolt" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">GitHub Actions</text><text class="ns2" x="28" y="82">push to main</text></g><g class="nd new" transform="translate(225,150)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Caddy</text><text class="ns2" x="28" y="82">:443 · auto HTTPS</text></g><g class="nd" transform="translate(360,70)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-n8n" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">n8n</text><text class="ns2" x="28" y="82">n8n.&lt;domain&gt;</text></g><g class="nd new" transform="translate(510,70)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">ops-api</text><text class="ns2" x="28" y="82">rate limit · AI budget</text></g><g class="nd new" transform="translate(225,300)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-clock" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Uptime Kuma</text><text class="ns2" x="28" y="82">status.&lt;domain&gt;</text></g><g class="nd" transform="translate(510,250)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Postgres</text><text class="ns2" x="28" y="82">app + n8n data</text></g><g class="nd new" transform="translate(300,470)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">deploy.sh</text><text class="ns2" x="28" y="82">pull · build · --wait</text></g><g class="nd new" transform="translate(470,470)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-clock" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">backup.sh</text><text class="ns2" x="28" y="82">cron 03:30</text></g><g class="nd" transform="translate(730,70)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-spark" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Claude API</text><text class="ns2" x="28" y="82">Haiku → Sonnet</text></g><g class="nd new" transform="translate(730,470)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-cloud" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Object storage</text><text class="ns2" x="28" y="82">R2 / B2 · 30 days</text></g><text class="pnote small " x="122" y="200">HTTPS</text><text class="pnote small " x="122" y="322">editor · status</text><text class="pnote small " x="420" y="90">x-api-key</text><text class="pnote small " x="590" y="90">extraction</text><text class="pnote small " x="430" y="185">n8n tables</text><text class="pnote small " x="545" y="215">orders · llm_calls</text><text class="pnote small err" x="330" y="262">checks /health</text><text class="pnote small err" x="128" y="118">down alert</text><text class="pnote small err" x="250" y="43">error workflow alert</text><text class="pnote small " x="160" y="470">SSH :22</text><text class="pnote small " x="545" y="400">pg_dump</text><text class="pnote small " x="600" y="490">off-site copy</text></svg>
+    </div>
+    <div class="edge-legend">
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#8f95a0" stroke-width="2"/></svg>traffic</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#2a1f19" stroke-width="2" stroke-dasharray="6 4"/></svg>authenticated call</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#336791" stroke-width="2" stroke-dasharray="2 3"/></svg>database</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#b8322a" stroke-width="2" stroke-dasharray="6 4"/></svg>health check / alert</span>
+      <span><b style="background:#fff;border-color:#c9562f"></b>added in Phase 2</span>
+    </div>
+    <figcaption><b>Only one door is open.</b> The firewall allows SSH, HTTP and HTTPS. Inside, only Caddy publishes ports: it gets HTTPS certificates automatically and forwards <code>n8n.&lt;domain&gt;</code> to n8n and <code>status.&lt;domain&gt;</code> to Uptime Kuma. ops-api and Postgres have no public port at all, so the API key and the database are never exposed to the internet. Telegram reaches the bot through the same HTTPS address every time, so there is no tunnel URL to re-register.</figcaption>
+  </figure>
+
+  <h3>What protects the system</h3>
+  <div class="lifecycle">
+    <div><b>Per-chat rate limit</b>More than <code>CHAT_RATE_LIMIT_PER_MINUTE</code> (6) messages a minute from one chat gets a polite "wait a minute" reply. Claude is never called, so spam costs nothing.</div>
+    <div><b>Daily AI budget</b>When today's spend in <code>llm_calls</code> reaches <code>DAILY_LLM_BUDGET_USD</code> ($2, about 6,000 orders), the bot pauses ordering until midnight and logs a <code>budget_exceeded</code> event.</div>
+    <div><b>Alerts</b>Uptime Kuma checks the API and n8n every minute and messages you on Telegram. Any failed n8n run triggers the <i>Error alert</i> workflow, which messages you and writes an <code>events</code> row.</div>
+    <div><b>Backups</b>Every night at 03:30, <code>backup.sh</code> dumps the database (orders and n8n), checks the file, keeps 7 days on the server and 30 off-site, then pings Kuma. No ping means an alert.</div>
+  </div>
+
+  <h3>From push to live</h3>
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 144" role="img" aria-label="CI/CD pipeline: push, test, evals, deploy, live"><g class="sub repo"><rect x="150" y="8" width="560" height="128" rx="10"/><text class="slabel" x="162" y="24">GITHUB ACTIONS</text><text class="zdesc" x="262.4" y="24">.github/workflows/ci.yml</text></g><path class="e flow" d="M86 58 H176"/><path class="e flow" d="M236 58 H346"/><path class="e flow" d="M406 58 H516"/><path class="e flow" d="M576 58 H736"/><g class="nd" transform="translate(30,30)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-user" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">git push</text><text class="ns2" x="28" y="82">main or a PR</text></g><g class="nd new" transform="translate(180,30)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Test</text><text class="ns2" x="28" y="82">typecheck · 23 tests</text></g><g class="nd new" transform="translate(350,30)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-spark" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Evals</text><text class="ns2" x="28" y="82">routed model ≥ 95%</text></g><g class="nd new" transform="translate(520,30)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-key" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Deploy</text><text class="ns2" x="28" y="82">SSH → deploy.sh</text></g><g class="nd" transform="translate(740,30)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-cloud" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Live</text><text class="ns2" x="28" y="82">all services healthy</text></g><text class="pnote small " x="262" y="50">real Postgres</text><text class="pnote small " x="430" y="50">main only</text><text class="pnote small " x="600" y="50">main only</text></svg>
+    </div>
+    <figcaption><b>Nothing broken reaches customers.</b> Every push and pull request is type-checked and tested, including API tests against a real Postgres (duplicate orders, races, pricing, auth). On <code>main</code>, the routed model must still score at least 95% on the eval set, then GitHub connects over SSH and runs <code>deploy.sh</code>, which waits until every container reports healthy.</figcaption>
+  </figure>
+
+  <div class="cols">
+    <h3>When something breaks</h3>
+    <table>
+      <thead><tr><th>What fails</th><th>Who notices</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td>ops-api crashes</td><td>Docker, Kuma</td><td>Restarted automatically. Telegram alert within about 2 minutes if it stays down. Customers get the apology reply meanwhile.</td></tr>
+        <tr><td>A workflow run fails</td><td>Error alert workflow</td><td>Telegram message naming the workflow, node and error, with a link to the run.</td></tr>
+        <tr><td>The server reboots</td><td>Docker</td><td>Every service has <code>restart: unless-stopped</code> and comes back on its own, in dependency order.</td></tr>
+        <tr><td>Someone spams the bot</td><td>Rate limit and budget</td><td>Extra messages are answered without calling Claude. Spend can't pass the daily cap.</td></tr>
+        <tr><td>Data is lost</td><td>You</td><td><code>scripts/restore.sh</code> rebuilds the database from last night's dump. Tested before go-live.</td></tr>
+        <tr><td>Backups stop</td><td>Kuma push monitor</td><td>No nightly ping within 25 hours means an alert.</td></tr>
+        <tr><td>A bad change is pushed</td><td>CI</td><td>Tests or evals fail and the deploy never runs.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Day to day on the server</h3>
+    <div class="cmd">ssh deploy@&lt;server&gt;
+cd ~/pastry-ops
+export COMPOSE_FILE=docker-compose.prod.yml
+
+docker compose ps     <span class="c"># health</span>
+docker compose logs -f ops-api
+scripts/deploy.sh     <span class="c"># deploy by hand</span>
+scripts/backup.sh     <span class="c"># back up now</span>
+scripts/restore.sh \
+  backups/&lt;file&gt;.dump restore_test</div>
+
+    <div class="box where">
+      <h4>Where it lives</h4>
+      <ul>
+        <li><span class="path">docs/runbook.md</span>: the step-by-step server setup, in order</li>
+        <li><span class="path">deploy/provision.sh</span>: user, SSH keys only, ufw, fail2ban, updates, swap, Docker</li>
+        <li><span class="path">docker-compose.prod.yml</span> · <span class="path">deploy/Caddyfile</span>: the stack, limits, logs, HTTPS</li>
+        <li><span class="path">scripts/</span>: <code>deploy</code>, <code>backup</code>, <code>restore</code>, <code>setup-n8n</code></li>
+        <li><span class="path">ops-api/src/services/guards.ts</span>: rate limit and budget</li>
+        <li><span class="path">n8n/workflows/error-alert.json</span>: the alert workflow</li>
+        <li><span class="path">.github/workflows/ci.yml</span>: test, evals, deploy</li>
+      </ul>
+    </div>
+    <div class="box warn">
+      <h4>Things to know</h4>
+      <ul>
+        <li>Use a <b>new</b> <code>N8N_ENCRYPTION_KEY</code> and new passwords on the server. The old key was committed in <span class="path">.env.example</span>. Once set, never change the key, or n8n can't read its credentials.</li>
+        <li>When the server is live, stop the laptop stack (<code>docker compose down</code>). Otherwise both send a 6 a.m. prep list.</li>
+        <li>Changing a workflow is still manual: edit in n8n on the server, then Download and commit the JSON.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14 GUARDS ============ -->
+<section class="sheet">
+  <p class="kicker">14 · Phase 2 · Guards</p>
+  <h2>Two checks before every AI call</h2>
+  <p class="standfirst">A public bot can be spammed, and every message costs a little money. Before ops-api calls Claude, it asks two questions of the <code>llm_calls</code> log it already keeps. If either answer is "too much", the customer gets a friendly reply and Claude is never called.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 690" role="img" aria-label="Guard flow inside POST /llm/extract-order: load usage, budget check, rate check, then Claude"><g class="sub n8n"><rect x="10" y="10" width="860" height="120" rx="10"/><text class="slabel" x="22" y="26">n8n</text><text class="zdesc" x="51.8" y="26">order-intake workflow, unchanged</text></g><g class="sub api"><rect x="10" y="140" width="860" height="280" rx="10"/><text class="slabel" x="22" y="156">ops-api</text><text class="zdesc" x="78.19999999999999" y="156">POST /llm/extract-order</text></g><g class="sub pg"><rect x="10" y="430" width="860" height="120" rx="10"/><text class="slabel" x="22" y="446">POSTGRES</text><text class="zdesc" x="84.8" y="446">llm_calls · events</text></g><g class="sub ext"><rect x="10" y="560" width="860" height="120" rx="10"/><text class="slabel" x="22" y="576">CLAUDE API</text><text class="zdesc" x="98.0" y="576">only called when both checks pass</text></g><path class="e flow" d="M96 64 C130 64, 110 194, 146 194"/><path class="e db" d="M178 452 V268"/><path class="e flow" d="M206 194 H266"/><path class="e flow" d="M326 203 C356 203, 356 194, 386 194"/><path class="e flow" d="M326 185 C365 185, 365 270, 328 296"/><path class="e flow" d="M446 203 C476 203, 486 194, 516 194"/><path class="e flow" d="M446 185 C485 185, 485 270, 448 296"/><path class="e call" d="M548 262 V582"/><path class="e flow" d="M576 194 H636"/><path class="e db" d="M668 262 V452"/><path class="e flow" d="M696 194 H766"/><path class="e db" d="M328 398 V452"/><path class="e flow" d="M356 328 C420 440, 640 440, 772 222"/><path class="e flow" d="M476 328 C600 328, 720 300, 772 222"/><path class="e flow" d="M798 162 V126"/><g class="nd" transform="translate(40,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Extract order</text><text class="nl2" x="28" y="82">with LLM</text><text class="ns2" x="28" y="94">message + chat_id</text></g><g class="nd new" transform="translate(150,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Load usage</text><text class="ns2" x="28" y="82">2 small queries</text></g><g class="nd new" transform="translate(270,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="hl2" x="62" y="16">yes</text><text class="hl2" x="62" y="46">no</text><text class="nl2" x="28" y="70">Budget spent?</text><text class="ns2" x="28" y="82">today ≥ $2</text></g><g class="nd new" transform="translate(390,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="hl2" x="62" y="16">yes</text><text class="hl2" x="62" y="46">no</text><text class="nl2" x="28" y="70">Too fast?</text><text class="ns2" x="28" y="82">≥ 6 in 1 min</text></g><g class="nd" transform="translate(520,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Extract order</text><text class="ns2" x="28" y="82">as before</text></g><g class="nd" transform="translate(640,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Log the call</text><text class="ns2" x="28" y="82">with chat_id</text></g><g class="nd" transform="translate(770,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Respond</text><text class="ns2" x="28" y="82">same JSON shape</text></g><g class="nd new" transform="translate(300,300)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Pause reply</text><text class="ns2" x="28" y="82">“resting for today”</text></g><g class="nd new" transform="translate(420,300)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Wait reply</text><text class="ns2" x="28" y="82">“wait a minute”</text></g><g class="nd" transform="translate(150,456)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">llm_calls</text><text class="ns2" x="28" y="82">cost · chat_id · time</text></g><g class="nd new" transform="translate(300,456)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">events</text><text class="ns2" x="28" y="82">budget_exceeded</text></g><g class="nd" transform="translate(640,456)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">llm_calls</text><text class="ns2" x="28" y="82">new row</text></g><g class="nd" transform="translate(520,586)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-spark" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Claude</text><text class="ns2" x="28" y="82">Haiku → Sonnet</text></g><g class="nd" transform="translate(770,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="hl2" x="62" y="16">yes</text><text class="hl2" x="62" y="46">no</text><text class="nl2" x="28" y="70">Validate</text><text class="nl2" x="28" y="82">extracted order</text></g><text class="pnote small " x="200" y="300">spend today,</text><text class="pnote small " x="200" y="312">recent requests</text><text class="pnote small err" x="30" y="400">blocked: reply sent, Claude never called</text><g class="stepdot"><circle cx="42" cy="32" r="8"/><text x="42" y="35.5">1</text></g><g class="stepdot"><circle cx="152" cy="162" r="8"/><text x="152" y="165.5">2</text></g><g class="stepdot"><circle cx="272" cy="162" r="8"/><text x="272" y="165.5">3</text></g><g class="stepdot"><circle cx="392" cy="162" r="8"/><text x="392" y="165.5">4</text></g><g class="stepdot"><circle cx="522" cy="162" r="8"/><text x="522" y="165.5">5</text></g><g class="stepdot"><circle cx="642" cy="162" r="8"/><text x="642" y="165.5">6</text></g><g class="stepdot"><circle cx="772" cy="162" r="8"/><text x="772" y="165.5">7</text></g><g class="stepdot"><circle cx="772" cy="32" r="8"/><text x="772" y="35.5">8</text></g></svg>
+    </div>
+    <div class="edge-legend">
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#8f95a0" stroke-width="2"/></svg>flow</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#2a1f19" stroke-width="2" stroke-dasharray="6 4"/></svg>call over the network</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#336791" stroke-width="2" stroke-dasharray="2 3"/></svg>database read / write</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#b8322a" stroke-width="2" stroke-dasharray="6 4"/></svg>failure / alert path</span>
+      <span><b style="background:#fff;border-color:#c9562f"></b>added in Phase 2</span>
+    </div>
+    <figcaption><b>Nothing changed in n8n.</b> ① n8n calls the API exactly as before. ② ops-api adds up today's AI spend and counts this chat's requests in the last minute. ③ If today's spend has reached the budget, it answers "resting for today" and logs one <code>budget_exceeded</code> event per day. ④ If this chat sent 6 or more messages in the last minute, it answers "wait a minute". ⑤ Otherwise extraction runs as in Phase 1. ⑥ Every Claude call is logged with the chat ID, which is what the next check reads. ⑦ Both kinds of reply use the normal response shape, with <code>valid: false</code> and the message as the clarification. ⑧ n8n's Validate node sends it as a normal question, so no workflow change was needed.</figcaption>
+  </figure>
+
+  <h3>The two limits</h3>
+  <div class="lifecycle">
+    <div><b>Per-chat rate limit</b><code>CHAT_RATE_LIMIT_PER_MINUTE</code>, default 6. Counts distinct Telegram updates from this chat in the last 60 seconds. A real customer never gets close; a script does straight away.</div>
+    <div><b>Daily AI budget</b><code>DAILY_LLM_BUDGET_USD</code>, default $2. The sum of <code>cost_usd</code> since midnight in Santo Domingo. At $0.0003 per order that's about 6,000 orders a day.</div>
+    <div><b>What the customer sees</b>"That's a lot of messages at once! Please wait a minute…" or "Our order assistant is resting for today…". Both are friendly, and neither costs anything.</div>
+    <div><b>What you see</b>A warning in the API log for each blocked message, a <code>budget_exceeded</code> row in <code>events</code>, and the totals in <code>/reports/llm-usage</code>.</div>
+  </div>
+
+  <div class="cols">
+    <h3>Check it yourself</h3>
+    <div class="cmd"><span class="c"># today's spend against the budget</span>
+GET /reports/llm-usage
+→ { "spent_today_usd": 0.0033,
+    "daily_budget_usd": 2, … }
+
+<span class="c"># recent events (budget, workflow errors)</span>
+GET /reports/events</div>
+    <div class="box where">
+      <h4>Where it lives</h4>
+      <ul>
+        <li><span class="path">ops-api/src/services/guards.ts</span>: <code>guardViolation()</code> (the decision), <code>loadUsage()</code> (the two queries), <code>recordEventOncePerDay()</code></li>
+        <li><span class="path">src/routes/llm.ts</span>: runs the guard before extraction</li>
+        <li><span class="path">db/migrations/004_phase2.sql</span>: <code>llm_calls.chat_id</code>, its index, and <code>events</code></li>
+        <li><span class="path">test/guards.test.ts</span>: the three cases</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h4>Why in the API, not in n8n</h4>
+      <p>The limits need the cost log, which lives in Postgres and is written by ops-api. Checking there keeps it in one place, keeps it testable, and protects the API even if something other than n8n calls it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 15 ALERTS ============ -->
+<section class="sheet">
+  <p class="kicker">15 · Phase 2 · Alerts</p>
+  <h2>You hear about it first</h2>
+  <p class="standfirst">Two independent watchers cover different failures. Uptime Kuma notices when a service or the nightly backup goes quiet. n8n's error workflow notices when a workflow run fails. Both send a Telegram message to the owner chat.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 800" role="img" aria-label="Alert paths: Uptime Kuma monitors ops-api, n8n and the backup heartbeat; n8n error workflow alerts the owner and logs an event"><g class="sub api"><rect x="10" y="10" width="860" height="120" rx="10"/><text class="slabel" x="22" y="26">SERVICES</text><text class="zdesc" x="84.8" y="26">what is being watched</text></g><g class="sub ext"><rect x="10" y="140" width="860" height="260" rx="10"/><text class="slabel" x="22" y="156">UPTIME KUMA</text><text class="zdesc" x="104.6" y="156">status.&lt;domain&gt;</text></g><g class="sub n8n"><rect x="10" y="410" width="860" height="120" rx="10"/><text class="slabel" x="22" y="426">n8n</text><text class="zdesc" x="51.8" y="426">Error alert workflow</text></g><g class="sub repo"><rect x="10" y="540" width="860" height="120" rx="10"/><text class="slabel" x="22" y="556">OWNER</text><text class="zdesc" x="65.0" y="556">Telegram</text></g><g class="sub pg"><rect x="10" y="670" width="860" height="120" rx="10"/><text class="slabel" x="22" y="686">POSTGRES</text><text class="zdesc" x="84.8" y="686">events</text></g><path class="e flow" d="M68 128 C68 300, 110 324, 156 324"/><path class="e call" d="M188 162 V128"/><path class="e flow" d="M216 194 C270 194, 290 249, 326 249"/><path class="e flow" d="M216 324 C270 324, 290 249, 326 249"/><path class="e err" d="M386 240 C440 240, 430 594, 476 594"/><path class="e err" d="M548 128 V432"/><path class="e flow" d="M576 464 H646"/><path class="e flow" d="M576 464 C600 464, 610 425, 680 425 C740 425, 740 464, 766 464"/><path class="e err" d="M678 532 C678 594, 570 594, 536 594"/><path class="e db" d="M798 532 V692"/><g class="nd" transform="translate(40,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">backup.sh</text><text class="ns2" x="28" y="82">nightly</text></g><g class="nd" transform="translate(160,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">ops-api</text><text class="ns2" x="28" y="82">GET /health</text></g><g class="nd bad" transform="translate(520,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-n8n" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Order intake</text><text class="nl2" x="28" y="82">(any run)</text><text class="ns2" x="28" y="94">fails</text></g><g class="nd new" transform="translate(160,166)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-clock" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">HTTP monitor</text><text class="ns2" x="28" y="82">every 60 s</text></g><g class="nd new" transform="translate(160,296)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-clock" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Push monitor</text><text class="ns2" x="28" y="82">ping within 25 h</text></g><g class="nd new" transform="translate(330,221)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="hl2" x="62" y="16">yes</text><text class="hl2" x="62" y="46">no</text><text class="nl2" x="28" y="70">Failed?</text><text class="ns2" x="28" y="82">twice in a row</text></g><g class="nd new" transform="translate(520,436)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-bolt" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">On workflow error</text><text class="ns2" x="28" y="82">error trigger</text></g><g class="nd new" transform="translate(650,436)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Alert owner</text><text class="ns2" x="28" y="82">Telegram</text></g><g class="nd new" transform="translate(770,436)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Log event</text><text class="ns2" x="28" y="82">POST /events</text></g><g class="nd" transform="translate(480,566)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-user" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Your phone</text><text class="ns2" x="28" y="82">both alerts arrive here</text></g><g class="nd new" transform="translate(770,696)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">events</text><text class="ns2" x="28" y="82">workflow_error</text></g><text class="pnote small " x="196" y="148">checks</text><text class="pnote small " x="90" y="250">heartbeat ping</text><text class="pnote small err" x="560" y="300">execution failed</text><text class="pnote small err" x="392" y="520">down alert</text><text class="pnote small " x="250" y="375">n8n: https://n8n.&lt;domain&gt;/healthz is a second HTTP monitor</text><g class="stepdot"><circle cx="162" cy="162" r="8"/><text x="162" y="165.5">1</text></g><g class="stepdot"><circle cx="332" cy="217" r="8"/><text x="332" y="220.5">2</text></g><g class="stepdot"><circle cx="522" cy="32" r="8"/><text x="522" y="35.5">3</text></g><g class="stepdot"><circle cx="522" cy="432" r="8"/><text x="522" y="435.5">4</text></g><g class="stepdot"><circle cx="652" cy="432" r="8"/><text x="652" y="435.5">5</text></g><g class="stepdot"><circle cx="772" cy="432" r="8"/><text x="772" y="435.5">6</text></g></svg>
+    </div>
+    <div class="edge-legend">
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#8f95a0" stroke-width="2"/></svg>flow</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#2a1f19" stroke-width="2" stroke-dasharray="6 4"/></svg>call over the network</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#336791" stroke-width="2" stroke-dasharray="2 3"/></svg>database read / write</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#b8322a" stroke-width="2" stroke-dasharray="6 4"/></svg>failure / alert path</span>
+      <span><b style="background:#fff;border-color:#c9562f"></b>added in Phase 2</span>
+    </div>
+    <figcaption><b>Outside in, and inside out.</b> ① Every 60 seconds Kuma calls <code>/health</code>, which also checks the database. ② After two failures in a row it sends a "down" alert, and later an "up" message when the service recovers. The backup works the other way: <code>backup.sh</code> pings a push monitor, and silence for 25 hours is the failure. ③ When any run of a linked workflow fails, n8n starts <i>Error alert</i>. ④ It receives the workflow name, the failing node, the error and a link to the run. ⑤ It messages the owner. ⑥ It records a <code>workflow_error</code> row in <code>events</code>. Each of those two nodes continues on error, so one failing doesn't stop the other.</figcaption>
+  </figure>
+
+  <h3>What each watcher catches</h3>
+  <table>
+    <thead><tr><th style="width:24%">Watcher</th><th style="width:30%">Catches</th><th>Misses (and who covers it)</th></tr></thead>
+    <tbody>
+      <tr><td>Kuma: ops-api monitor</td><td>API crashed, stuck, or can't reach the database</td><td>Wrong answers. The evals in CI cover those.</td></tr>
+      <tr><td>Kuma: n8n monitor</td><td>n8n down, HTTPS or Caddy broken</td><td>A single failed run. The error workflow covers it.</td></tr>
+      <tr><td>Kuma: push monitor</td><td>Backups not running: cron, disk or credentials</td><td>A corrupt dump. <code>backup.sh</code> checks every dump before keeping it.</td></tr>
+      <tr><td>n8n Error alert</td><td>Any unhandled failure in Order intake or Daily prep list</td><td>Failures already handled by an error branch, which send the customer an apology instead.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="cols">
+    <h3>Set up and test</h3>
+    <div class="cmd"><span class="c"># Kuma monitors are created in its web page:</span>
+<span class="c"># docs/runbook.md, step 6</span>
+
+<span class="c"># test the down alert (expect a message in ~2 min)</span>
+docker compose stop ops-api
+docker compose start ops-api
+
+<span class="c"># see what the error workflow logged</span>
+GET /reports/events</div>
+    <div class="box where">
+      <h4>Where it lives</h4>
+      <ul>
+        <li><span class="path">n8n/workflows/error-alert.json</span>: ID <code>pastryErrorAlert</code></li>
+        <li>Both other workflows: <b>Settings → Error workflow</b> = <i>Error alert</i></li>
+        <li><span class="path">docker-compose.prod.yml</span>: the <code>uptime-kuma</code> service. Its data is in the <code>uptime_kuma_data</code> volume.</li>
+        <li><span class="path">src/routes/system.ts</span>: <code>POST /events</code> · <span class="path">reports.ts</span>: <code>GET /reports/events</code></li>
+      </ul>
+    </div>
+    <div class="box warn">
+      <h4>Things to know</h4>
+      <ul>
+        <li>Error workflows only run for real (production) executions. A failing manual test run in the editor doesn't send an alert.</li>
+        <li>Kuma reaches ops-api by its internal name, <code>http://ops-api:3001/health</code>, so the API never needs a public port.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16 BACKUPS ============ -->
+<section class="sheet">
+  <p class="kicker">16 · Phase 2 · Backups</p>
+  <h2>Every night, and a way back</h2>
+  <p class="standfirst">One Postgres database holds everything that matters: the menu, customers, orders, conversations, the cost log, and n8n's own workflows and credentials. One nightly dump of it is a complete backup.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 530" role="img" aria-label="Nightly backup flow: cron, pg_dump, verify, keep locally, copy off-site, prune, heartbeat"><g class="sub repo"><rect x="10" y="10" width="860" height="120" rx="10"/><text class="slabel" x="22" y="26">HOST</text><text class="zdesc" x="58.4" y="26">cron + scripts/backup.sh</text></g><g class="sub pg"><rect x="10" y="140" width="860" height="120" rx="10"/><text class="slabel" x="22" y="156">POSTGRES CONTAINER</text><text class="zdesc" x="150.8" y="156">the dump is made inside</text></g><g class="sub ext"><rect x="10" y="270" width="860" height="120" rx="10"/><text class="slabel" x="22" y="286">OBJECT STORAGE</text><text class="zdesc" x="124.39999999999999" y="286">R2 / B2, via rclone</text></g><g class="sub api"><rect x="10" y="400" width="860" height="120" rx="10"/><text class="slabel" x="22" y="416">UPTIME KUMA</text><text class="zdesc" x="104.6" y="416">push monitor</text></g><path class="e flow" d="M96 64 C130 64, 120 194, 156 194"/><path class="e flow" d="M216 194 H276"/><path class="e flow" d="M336 194 C370 194, 360 64, 396 64"/><path class="e call" d="M456 64 C490 64, 480 324, 516 324"/><path class="e call" d="M576 324 H636"/><path class="e call" d="M696 324 C730 324, 720 454, 756 454"/><g class="nd new" transform="translate(40,36)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-clock" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">cron 03:30</text><text class="ns2" x="28" y="82">every night</text></g><g class="nd new" transform="translate(160,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">pg_dump -Fc</text><text class="ns2" x="28" y="82">orders + n8n data</text></g><g class="nd new" transform="translate(280,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Check the dump</text><text class="ns2" x="28" y="82">pg_restore --list</text></g><g class="nd new" transform="translate(400,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Keep locally</text><text class="ns2" x="28" y="82">delete &gt; 7 days</text></g><g class="nd new" transform="translate(520,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-cloud" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Copy off-site</text><text class="ns2" x="28" y="82">rclone copy</text></g><g class="nd new" transform="translate(640,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-cloud" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Prune</text><text class="ns2" x="28" y="82">delete &gt; 30 days</text></g><g class="nd new" transform="translate(760,426)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-bolt" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Heartbeat</text><text class="ns2" x="28" y="82">ping push URL</text></g><text class="pnote small " x="220" y="186">.partial file</text><text class="pnote small err" x="345" y="244">unreadable → stop</text><g class="stepdot"><circle cx="42" cy="32" r="8"/><text x="42" y="35.5">1</text></g><g class="stepdot"><circle cx="162" cy="162" r="8"/><text x="162" y="165.5">2</text></g><g class="stepdot"><circle cx="282" cy="162" r="8"/><text x="282" y="165.5">3</text></g><g class="stepdot"><circle cx="402" cy="32" r="8"/><text x="402" y="35.5">4</text></g><g class="stepdot"><circle cx="522" cy="292" r="8"/><text x="522" y="295.5">5</text></g><g class="stepdot"><circle cx="642" cy="292" r="8"/><text x="642" y="295.5">6</text></g><g class="stepdot"><circle cx="762" cy="422" r="8"/><text x="762" y="425.5">7</text></g></svg>
+    </div>
+    <div class="edge-legend">
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#8f95a0" stroke-width="2"/></svg>flow</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#2a1f19" stroke-width="2" stroke-dasharray="6 4"/></svg>call over the network</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#336791" stroke-width="2" stroke-dasharray="2 3"/></svg>database read / write</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#b8322a" stroke-width="2" stroke-dasharray="6 4"/></svg>failure / alert path</span>
+      <span><b style="background:#fff;border-color:#c9562f"></b>added in Phase 2</span>
+    </div>
+    <figcaption><b>Nightly, at 03:30 server time.</b> ① cron starts <code>backup.sh</code>. ② <code>pg_dump</code> runs inside the Postgres container and writes a compressed custom-format file, first as <code>.partial</code>. ③ <code>pg_restore --list</code> reads it back. If it can't, the script stops, nothing is kept, and the heartbeat never fires. ④ The file gets its final name in <span class="path">backups/</span>, and copies older than 7 days are deleted. ⑤ rclone copies it to the bucket. ⑥ Copies older than 30 days are deleted from the bucket. ⑦ Kuma gets its heartbeat. A missing heartbeat is an alert (§15).</figcaption>
+  </figure>
+
+  <h3>Restoring</h3>
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 270" role="img" aria-label="Restore flow: choose live or scratch database, drop and create, pg_restore, count rows, restart"><g class="sub repo"><rect x="10" y="10" width="860" height="120" rx="10"/><text class="slabel" x="22" y="26">HOST</text><text class="zdesc" x="58.4" y="26">scripts/restore.sh &lt;file&gt; [target]</text></g><g class="sub pg"><rect x="10" y="140" width="860" height="120" rx="10"/><text class="slabel" x="22" y="156">POSTGRES CONTAINER</text><text class="zdesc" x="150.8" y="156"></text></g><path class="e flow" d="M96 64 H156"/><path class="e flow" d="M216 55 C250 55, 240 64, 276 64"/><path class="e flow" d="M216 73 C260 73, 250 194, 276 194"/><path class="e flow" d="M336 64 C370 64, 360 194, 396 194"/><path class="e flow" d="M336 194 H396"/><path class="e db" d="M456 194 H516"/><path class="e db" d="M576 194 H636"/><path class="e flow" d="M696 194 C730 194, 720 64, 756 64"/><g class="nd" transform="translate(40,36)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Backup file</text><text class="ns2" x="28" y="82">local or remote:</text></g><g class="nd" transform="translate(160,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="hl2" x="62" y="16">yes</text><text class="hl2" x="62" y="46">no</text><text class="nl2" x="28" y="70">Live database?</text><text class="ns2" x="28" y="82">target = POSTGRES_DB</text></g><g class="nd new" transform="translate(280,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Type the name</text><text class="ns2" x="28" y="82">then stop n8n + API</text></g><g class="nd" transform="translate(280,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Scratch database</text><text class="ns2" x="28" y="82">e.g. restore_test</text></g><g class="nd" transform="translate(400,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Drop + create</text><text class="ns2" x="28" y="82">WITH (FORCE)</text></g><g class="nd" transform="translate(520,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">pg_restore</text><text class="ns2" x="28" y="82">--exit-on-error</text></g><g class="nd" transform="translate(640,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Count rows</text><text class="ns2" x="28" y="82">menu · orders · workflows</text></g><g class="nd" transform="translate(760,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-n8n" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Restart services</text><text class="ns2" x="28" y="82">live restore only</text></g></svg>
+    </div>
+    <figcaption><b>Test into scratch, restore into live.</b> With a second argument, the script restores into a scratch database while everything keeps running: the safe way to prove a backup works. Without one, it targets the live database: it asks you to type the database name, stops n8n and ops-api, restores, and starts them again.</figcaption>
+  </figure>
+
+  <div class="cols">
+    <div class="cmd"><span class="c"># back up now</span>
+scripts/backup.sh
+
+<span class="c"># prove last night's backup works</span>
+scripts/restore.sh remote:pastry-&lt;time&gt;.dump restore_test
+<span class="c"># → menu items: 6, orders: …, n8n workflows: 3</span>
+
+<span class="c"># disaster: replace the live database</span>
+scripts/restore.sh backups/pastry-&lt;time&gt;.dump</div>
+    <div class="box where">
+      <h4>Where it lives</h4>
+      <ul>
+        <li><span class="path">scripts/backup.sh</span> and <span class="path">scripts/restore.sh</span></li>
+        <li><code>BACKUP_S3_*</code>, <code>BACKUP_HEARTBEAT_URL</code> and the retention days in <span class="path">.env</span></li>
+        <li>The cron line: <span class="path">docs/runbook.md</span>, step 7</li>
+        <li>rclone runs as a throwaway container, so nothing extra is installed on the server</li>
+      </ul>
+    </div>
+    <div class="box warn">
+      <h4>Things to know</h4>
+      <ul>
+        <li>A restored n8n only works with the same <code>N8N_ENCRYPTION_KEY</code>. Keep a copy of the server's <span class="path">.env</span> somewhere safe, outside the server.</li>
+        <li>An untested backup isn't a backup. Do a scratch restore once a month.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 17 DEPLOYS ============ -->
+<section class="sheet">
+  <p class="kicker">17 · Phase 2 · Deploys</p>
+  <h2>From a push to production</h2>
+  <p class="standfirst">Every change goes through the same gates. A pull request is checked but never deployed. A push to <code>main</code> is checked, scored against the eval set, and then deployed by GitHub over SSH, with no manual steps on the server.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 530" role="img" aria-label="CI/CD: push, typecheck and tests, docker build, branch check, evals, SSH deploy, git pull, compose up, migrations, health wait"><g class="sub repo"><rect x="10" y="10" width="860" height="120" rx="10"/><text class="slabel" x="22" y="26">YOU</text><text class="zdesc" x="51.8" y="26"></text></g><g class="sub api"><rect x="10" y="140" width="860" height="120" rx="10"/><text class="slabel" x="22" y="156">GITHUB ACTIONS</text><text class="zdesc" x="124.39999999999999" y="156">.github/workflows/ci.yml</text></g><g class="sub n8n"><rect x="10" y="270" width="860" height="120" rx="10"/><text class="slabel" x="22" y="286">VPS</text><text class="zdesc" x="51.8" y="286">scripts/deploy.sh over SSH</text></g><g class="sub pg"><rect x="10" y="400" width="860" height="120" rx="10"/><text class="slabel" x="22" y="416">POSTGRES</text><text class="zdesc" x="84.8" y="416">schema_migrations</text></g><path class="e flow" d="M96 64 C130 64, 110 194, 146 194"/><path class="e flow" d="M206 194 H266"/><path class="e flow" d="M326 194 H386"/><path class="e flow" d="M446 185 H506"/><path class="e flow" d="M566 194 H626"/><path class="e flow" d="M696 324 H756"/><path class="e call" d="M658 264 C658 292, 330 280, 266 324"/><path class="e flow" d="M326 324 H386"/><path class="e db" d="M446 324 C480 324, 470 454, 506 454"/><path class="e flow" d="M566 454 C600 454, 590 324, 626 324"/><g class="nd" transform="translate(40,36)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-user" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">git push</text><text class="ns2" x="28" y="82">main or a PR</text></g><g class="nd new" transform="translate(150,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Typecheck + test</text><text class="ns2" x="28" y="82">23 tests · Postgres</text></g><g class="nd new" transform="translate(270,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Docker build</text><text class="ns2" x="28" y="82">production image</text></g><g class="nd new" transform="translate(390,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="19" r="3.5"/><circle class="hout" cx="56" cy="37" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="hl2" x="62" y="16">yes</text><text class="hl2" x="62" y="46">no</text><text class="nl2" x="28" y="70">Push to main?</text><text class="ns2" x="28" y="82">PRs stop here</text></g><g class="nd new" transform="translate(510,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-spark" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Evals</text><text class="ns2" x="28" y="82">routed ≥ 95%</text></g><g class="nd new" transform="translate(630,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-key" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Deploy job</text><text class="ns2" x="28" y="82">SSH as deploy</text></g><g class="nd new" transform="translate(270,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-file" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">git pull</text><text class="ns2" x="28" y="82">--ff-only</text></g><g class="nd new" transform="translate(390,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-n8n" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">compose up</text><text class="nl2" x="28" y="82">--build --wait</text></g><g class="nd new" transform="translate(510,426)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-db" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Migrations</text><text class="ns2" x="28" y="82">new files only</text></g><g class="nd new" transform="translate(640,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-if" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Healthy?</text><text class="ns2" x="28" y="82">waits up to 180 s</text></g><g class="nd" transform="translate(760,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-cloud" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Live</text><text class="ns2" x="28" y="82">old image pruned</text></g><text class="pnote small err" x="574" y="257">fail: stop</text><g class="stepdot"><circle cx="42" cy="32" r="8"/><text x="42" y="35.5">1</text></g><g class="stepdot"><circle cx="152" cy="162" r="8"/><text x="152" y="165.5">2</text></g><g class="stepdot"><circle cx="272" cy="162" r="8"/><text x="272" y="165.5">3</text></g><g class="stepdot"><circle cx="392" cy="162" r="8"/><text x="392" y="165.5">4</text></g><g class="stepdot"><circle cx="512" cy="162" r="8"/><text x="512" y="165.5">5</text></g><g class="stepdot"><circle cx="632" cy="162" r="8"/><text x="632" y="165.5">6</text></g><g class="stepdot"><circle cx="272" cy="292" r="8"/><text x="272" y="295.5">7</text></g><g class="stepdot"><circle cx="392" cy="292" r="8"/><text x="392" y="295.5">8</text></g><g class="stepdot"><circle cx="512" cy="422" r="8"/><text x="512" y="425.5">9</text></g><g class="stepdot"><circle cx="642" cy="292" r="8"/><text x="642" y="295.5">10</text></g></svg>
+    </div>
+    <div class="edge-legend">
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#8f95a0" stroke-width="2"/></svg>flow</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#2a1f19" stroke-width="2" stroke-dasharray="6 4"/></svg>call over the network</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#336791" stroke-width="2" stroke-dasharray="2 3"/></svg>database read / write</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#b8322a" stroke-width="2" stroke-dasharray="6 4"/></svg>failure / alert path</span>
+      <span><b style="background:#fff;border-color:#c9562f"></b>added in Phase 2</span>
+    </div>
+    <figcaption><b>Each gate can stop the line.</b> ① You push. ② GitHub type-checks the API and runs all 23 tests, with a real Postgres for the API tests. ③ It builds the production Docker image, so a broken Dockerfile fails here and not on the server. ④ Pull requests stop here. ⑤ On <code>main</code>, the routed model runs the 40 eval cases and must score at least 95%, at a cost of about a cent. ⑥ GitHub connects to the server as <code>deploy</code>, using a key that only it has. ⑦ <code>deploy.sh</code> pulls <code>main</code>, fast-forward only. ⑧ Compose rebuilds what changed and restarts it. ⑨ On start, ops-api applies any new file in <span class="path">db/migrations/</span>, once, inside a transaction. ⑩ The script waits until every container reports healthy, then prunes old images.</figcaption>
+  </figure>
+
+  <h3>The gates</h3>
+  <div class="lifecycle">
+    <div><b>Types and tests</b>Pricing, rules, guards and memory as unit tests. Duplicate orders, five simultaneous retries, database pricing and API-key checks run against a real database.</div>
+    <div><b>Image build</b>The same two-stage Dockerfile as production: compile TypeScript, then a small image with only runtime dependencies, run as a non-root user.</div>
+    <div><b>Evals</b>A prompt or model change that hurts accuracy fails the run. Skipped with a warning while <code>ANTHROPIC_API_KEY</code> isn't set.</div>
+    <div><b>Health wait</b><code>up --wait</code> fails the deploy if a container doesn't become healthy, so a broken release shows as a red run, not silence.</div>
+  </div>
+
+  <div class="cols">
+    <h3>Database changes</h3>
+    <p>Add a new numbered file, for example <span class="path">db/migrations/005_add_phone.sql</span>, and push. On the next start, ops-api takes a database lock (so two copies can't race), applies each file it hasn't seen inside a transaction, records it in <code>schema_migrations</code>, then runs <span class="path">db/seed.sql</span>, which only fills an empty menu. Never edit a migration that has already run; add a new one.</p>
+    <div class="box where">
+      <h4>Where it lives</h4>
+      <ul>
+        <li><span class="path">.github/workflows/ci.yml</span>: jobs <code>test</code>, <code>evals</code>, <code>deploy</code></li>
+        <li><span class="path">scripts/deploy.sh</span>: pull, build, wait, prune</li>
+        <li><span class="path">ops-api/src/db/migrate.ts</span>: the migration runner</li>
+        <li><span class="path">ops-api/Dockerfile</span>: the two-stage build</li>
+        <li>GitHub → Settings → Environments → <code>production</code>: the SSH secrets</li>
+      </ul>
+    </div>
+    <div class="box warn">
+      <h4>Things to know</h4>
+      <ul>
+        <li>n8n workflows aren't deployed by CI. They live in n8n's database. Edit on the server, then Download and commit the JSON as the record.</li>
+        <li>To roll back, revert the commit and push. The pipeline deploys the previous code.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 18 THE SERVER ============ -->
+<section class="sheet">
+  <p class="kicker">18 · Phase 2 · The server</p>
+  <h2>One door for customers, one for you</h2>
+  <p class="standfirst"><span class="path">deploy/provision.sh</span> turns a fresh Ubuntu server into a locked-down host in one run. After that, there are only two ways in: HTTPS for customers and Telegram, and SSH with a key for you and GitHub.</p>
+
+  <figure>
+    <div class="canvas">
+      <svg class="cv poster" viewBox="0 0 880 400" role="img" aria-label="Request paths through the server: HTTPS from Telegram via DNS, ufw and Caddy to n8n and ops-api; SSH via sshd with fail2ban to the deploy user"><g class="sub repo"><rect x="10" y="10" width="860" height="120" rx="10"/><text class="slabel" x="22" y="26">INTERNET</text><text class="zdesc" x="84.8" y="26"></text></g><g class="sub ext"><rect x="10" y="140" width="860" height="120" rx="10"/><text class="slabel" x="22" y="156">VPS HOST</text><text class="zdesc" x="84.8" y="156">Ubuntu 24.04 · deploy/provision.sh</text></g><g class="sub api"><rect x="10" y="270" width="860" height="120" rx="10"/><text class="slabel" x="22" y="286">DOCKER</text><text class="zdesc" x="71.6" y="286">docker-compose.prod.yml</text></g><path class="e flow" d="M96 64 H146"/><path class="e flow" d="M206 64 C240 64, 230 194, 266 194"/><path class="e flow" d="M326 194 C360 194, 350 324, 386 324"/><path class="e flow" d="M446 324 H506"/><path class="e call" d="M566 324 H626"/><path class="e flow" d="M736 64 V162"/><path class="e err" d="M764 222 C800 222, 800 194, 806 194"/><path class="e flow" d="M736 226 V292"/><g class="nd" transform="translate(40,36)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-telegram" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Telegram</text><text class="ns2" x="28" y="82">POST webhook</text></g><g class="nd" transform="translate(150,36)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-globe" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">DNS</text><text class="ns2" x="28" y="82">n8n.&lt;domain&gt; → IP</text></g><g class="nd new" transform="translate(270,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">ufw firewall</text><text class="ns2" x="28" y="82">443 allowed</text></g><g class="nd new" transform="translate(390,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">Caddy</text><text class="ns2" x="28" y="82">HTTPS · headers</text></g><g class="nd" transform="translate(510,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-n8n" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">n8n</text><text class="ns2" x="28" y="82">/webhook/order-intake</text></g><g class="nd" transform="translate(630,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-api" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">ops-api</text><text class="ns2" x="28" y="82">no public port</text></g><g class="nd" transform="translate(708,36)"><path class="shape" d="M28 0H48a8 8 0 0 1 8 8v40a8 8 0 0 1-8 8H28a28 28 0 0 1 0-56z"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-user" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">You (SSH)</text><text class="ns2" x="28" y="82">key only</text></g><g class="nd new" transform="translate(708,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><circle class="hout" cx="56" cy="28" r="3.5"/><use href="#i-key" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">sshd</text><text class="ns2" x="28" y="82">no root · no passwords</text></g><g class="nd new" transform="translate(810,166)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-shield" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">fail2ban</text><text class="ns2" x="28" y="82">5 fails → 1 h ban</text></g><g class="nd new" transform="translate(708,296)"><rect class="shape" width="56" height="56" rx="8"/><rect class="hin" x="-4" y="23" width="5" height="10" rx="1.5"/><use href="#i-user" x="15" y="15" width="26" height="26"/><text class="nl2" x="28" y="70">deploy user</text><text class="ns2" x="28" y="82">sudo · docker</text></g><text class="pnote small err" x="335" y="178">other ports: dropped</text><text class="pnote small " x="262" y="352">Let’s Encrypt cert</text><text class="pnote small " x="742" y="148">:22</text></svg>
+    </div>
+    <div class="edge-legend">
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#8f95a0" stroke-width="2"/></svg>flow</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#2a1f19" stroke-width="2" stroke-dasharray="6 4"/></svg>call over the network</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#336791" stroke-width="2" stroke-dasharray="2 3"/></svg>database read / write</span>
+      <span><svg viewBox="0 0 28 8"><path d="M1 4H27" stroke="#b8322a" stroke-width="2" stroke-dasharray="6 4"/></svg>failure / alert path</span>
+      <span><b style="background:#fff;border-color:#c9562f"></b>added in Phase 2</span>
+    </div>
+    <figcaption><b>Left: a customer's message. Right: you.</b> Telegram looks up <code>n8n.&lt;domain&gt;</code> and connects on port 443. The firewall lets 80 and 443 through to Caddy and drops every other port. Caddy terminates HTTPS with a certificate it renewed itself, adds security headers, and forwards to n8n on the internal Docker network. n8n calls ops-api by name; neither ops-api nor Postgres has a port on the host. On the right, SSH accepts keys only, refuses root, and lets in only the <code>deploy</code> user. fail2ban bans an address for an hour after 5 failed attempts.</figcaption>
+  </figure>
+
+  <h3>What provision.sh does</h3>
+  <div class="lifecycle">
+    <div><b>A deploy user</b>Created with your SSH key, in the <code>sudo</code> and <code>docker</code> groups. Everything runs as this user, never as root.</div>
+    <div><b>SSH lockdown</b>No root login, no passwords, at most 3 tries per connection, and only <code>deploy</code> allowed. Checked with <code>sshd -t</code> before the restart.</div>
+    <div><b>Firewall and bans</b>ufw denies all incoming traffic except 22, 80 and 443. fail2ban watches SSH logins through the system journal.</div>
+    <div><b>Upkeep</b>Automatic security updates every day, a 2 GB swap file so n8n has headroom on a small server, and Docker with Compose v2.</div>
+  </div>
+
+  <div class="cols">
+    <h3>The production stack</h3>
+    <table>
+      <thead><tr><th>Service</th><th>Public?</th><th>Memory cap</th></tr></thead>
+      <tbody>
+        <tr><td>Caddy</td><td>80, 443</td><td>128 MB</td></tr>
+        <tr><td>n8n</td><td>through Caddy</td><td>1 GB</td></tr>
+        <tr><td>Uptime Kuma</td><td>through Caddy</td><td>256 MB</td></tr>
+        <tr><td>ops-api</td><td>no</td><td>256 MB</td></tr>
+        <tr><td>Postgres</td><td>no</td><td>768 MB</td></tr>
+      </tbody>
+    </table>
+    <p>Every service restarts on its own (<code>unless-stopped</code>), has a health check where it matters, and keeps at most 30 MB of logs. Images are pinned to exact versions, so a deploy never picks up a surprise upgrade.</p>
+    <div class="box where">
+      <h4>Where it lives</h4>
+      <ul>
+        <li><span class="path">deploy/provision.sh</span>: run once as root on a new server</li>
+        <li><span class="path">deploy/Caddyfile</span>: the two sites and the security headers</li>
+        <li><span class="path">docker-compose.prod.yml</span>: services, limits, health checks, logs</li>
+        <li><span class="path">docs/runbook.md</span>: steps 1 to 4</li>
+      </ul>
+    </div>
+    <div class="box warn">
+      <h4>Things to know</h4>
+      <ul>
+        <li>Keep the root session open until <code>ssh deploy@&lt;server&gt;</code> works in a new terminal. Otherwise you can lock yourself out.</li>
+        <li>Docker can bypass ufw for published ports. That's why only Caddy publishes any, and only 80 and 443.</li>
       </ul>
     </div>
   </div>

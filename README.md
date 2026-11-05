@@ -11,7 +11,10 @@
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Telegram](https://img.shields.io/badge/Telegram_Bot_API-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)
-![Cloudflare](https://img.shields.io/badge/Cloudflare_Tunnel-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)
+![Caddy](https://img.shields.io/badge/Caddy-1F88C0?style=for-the-badge&logo=caddy&logoColor=white)
+![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
+
+[![CI/CD](https://github.com/samaltaa/Pastry-Order-Automation-n8n/actions/workflows/ci.yml/badge.svg)](https://github.com/samaltaa/Pastry-Order-Automation-n8n/actions/workflows/ci.yml)
 
 | Accuracy | Prompt-injection cases | Cost per order | Avg. response |
 |:---:|:---:|:---:|:---:|
@@ -29,9 +32,10 @@
 6. [How did you choose the model?](#6-how-did-you-choose-the-model)
 7. [What happens when something fails?](#7-what-happens-when-something-fails)
 8. [How does the bot remember the conversation?](#8-how-does-the-bot-remember-the-conversation)
-9. [How is it documented?](#9-how-is-it-documented)
-10. [How do I run it?](#10-how-do-i-run-it)
-11. [What's next?](#11-whats-next)
+9. [How does it run in production?](#9-how-does-it-run-in-production)
+10. [How is it documented?](#10-how-is-it-documented)
+11. [How do I run it?](#11-how-do-i-run-it)
+12. [What's next?](#12-whats-next)
 
 ---
 
@@ -106,7 +110,10 @@ There are two n8n workflows, both exported to [`n8n/workflows/`](n8n/workflows):
 | <img src="https://cdn.simpleicons.org/postgresql" width="22"> | **PostgreSQL 16** | The source of truth for the menu, orders, customers, conversations, duplicate checks and LLM cost logs. It also stores n8n's own data. |
 | <img src="https://cdn.simpleicons.org/docker" width="22"> | **Docker Compose** | One command starts the whole stack the same way on any machine. |
 | <img src="https://cdn.simpleicons.org/telegram" width="22"> | **Telegram Bot API** | The channel customers already use, with secret-token verification on every webhook. |
-| <img src="https://cdn.simpleicons.org/cloudflare" width="22"> | **Cloudflare Tunnel** | Gives the self-hosted stack a public HTTPS URL for Telegram's webhook. |
+| <img src="https://cdn.simpleicons.org/caddy" width="22"> | **Caddy** | Production reverse proxy with automatic HTTPS. The only service with public ports. |
+| <img src="https://cdn.simpleicons.org/uptimekuma" width="22"> | **Uptime Kuma** | Checks the API, n8n and the nightly backup, and sends Telegram alerts. |
+| <img src="https://cdn.simpleicons.org/githubactions" width="22"> | **GitHub Actions** | Runs type-checking, tests and evals, then deploys to the VPS over SSH. |
+| <img src="https://cdn.simpleicons.org/cloudflare" width="22"> | **Cloudflare Tunnel** | Local development only: a public HTTPS URL for Telegram's webhook without a server. |
 
 ## 5. How do you stop the AI from making things up?
 
@@ -140,6 +147,9 @@ I measured instead of guessing. [`evals/run.ts`](evals/run.ts) runs 40 test case
 | The Claude API errors or returns nonsense | The system escalates to the stronger model, and if that fails too, the customer gets an apology instead of silence. |
 | Order creation fails | n8n's error branch sends a polite apology. |
 | Two messages from the same customer arrive at once | The conversation row is locked, so the messages are processed one at a time. |
+| Someone spams the bot | A per-chat rate limit answers extra messages without calling Claude, and a daily AI budget caps total spend. |
+| A workflow run fails or a service goes down | An n8n error workflow and Uptime Kuma send the owner a Telegram alert within about 2 minutes. |
+| The server reboots or data is lost | Every service restarts on its own, and nightly off-site backups have a tested restore script. |
 | AI costs need checking | Every model call is logged with tokens, cost and latency, and `GET /reports/llm-usage` sums them. |
 
 ## 8. How does the bot remember the conversation?
@@ -150,14 +160,51 @@ Each chat has a row in Postgres holding the **order draft so far** and the **las
 - `/cancel` clears it immediately.
 - After an order is placed, the delivery address is saved, so next time the bot asks: *"Same address as last time?"*
 
-## 9. How is it documented?
+## 9. How does it run in production?
 
-- **[Operator manual](instructions_docs.html):** an illustrated, magazine-style guide covering the system map, workflow charts, how to change the menu or a workflow, the API reference, operations, troubleshooting and how memory works. Open it in a browser or print it to PDF.
+The whole stack runs on one hardened VPS with Docker Compose ([`docker-compose.prod.yml`](docker-compose.prod.yml)).
+
+```mermaid
+flowchart LR
+    T([Telegram]) -->|HTTPS| C
+    U([Owner's browser]) -->|HTTPS| C
+    GH[GitHub Actions] -->|SSH deploy| D[deploy.sh]
+    subgraph VPS["VPS · ufw allows 22, 80, 443 only"]
+        C[Caddy<br/>auto HTTPS] --> N[n8n]
+        C --> K[Uptime Kuma]
+        N --> A[ops-api<br/>rate limit · AI budget]
+        A --> P[(Postgres)]
+        N --> P
+        K -.->|/health| A
+        B[backup.sh<br/>nightly cron] --> P
+    end
+    A --> AI[Claude API]
+    B --> S[(Object storage)]
+    K -.->|alert| O([Owner on Telegram])
+    N -.->|error workflow| O
+```
+
+| Concern | How it's handled |
+|---|---|
+| **Security** | SSH keys only, no root login, ufw firewall, fail2ban, automatic security updates ([`deploy/provision.sh`](deploy/provision.sh)). Only Caddy publishes ports, so the API and database aren't reachable from the internet. API keys are compared in constant time. |
+| **HTTPS** | Caddy gets and renews certificates automatically and adds security headers ([`deploy/Caddyfile`](deploy/Caddyfile)). |
+| **Cost control** | 6 messages a minute per chat, and a $2 daily AI budget (about 6,000 orders), both read from the `llm_calls` log. |
+| **Monitoring** | Uptime Kuma checks the API and n8n every minute. An n8n error workflow reports any failed run to Telegram and logs it to an `events` table. |
+| **Backups** | Nightly `pg_dump` of orders and n8n data, verified, kept 7 days locally and 30 days off-site, with a restore script tested into a scratch database. |
+| **Deploys** | Every push runs type-checking and 23 tests, including API tests against a real Postgres (duplicate orders, concurrent retries, pricing, auth). On `main`, the evals must stay at 95% or above before GitHub deploys over SSH, and the deploy waits until every container is healthy. |
+| **Database changes** | Numbered files in [`db/migrations/`](db/migrations), applied once each by the API at startup. |
+
+The server setup is written step by step in [`docs/runbook.md`](docs/runbook.md).
+
+## 10. How is it documented?
+
+- **[Operator manual](instructions_docs.html):** an illustrated, magazine-style guide covering the system map, workflow charts, how to change the menu or a workflow, the API reference, operations, troubleshooting, how memory works and the production setup.
+- **[Runbook](docs/runbook.md):** server setup, monitoring, backups, CI/CD and day-to-day commands. Open it in a browser or print it to PDF.
 - **[ADR 001: model choice](docs/decisions/001-model-choice.md):** why Haiku with Sonnet as escalation, backed by eval data.
 - **[Eval results](evals/results.md):** regenerated on every eval run.
 - **[n8n workflow exports](n8n/workflows):** version-controlled JSON for both workflows.
 
-## 10. How do I run it?
+## 11. How do I run it?
 
 **Requirements:** Docker, a Telegram bot token from [@BotFather](https://t.me/BotFather), and an Anthropic API key.
 
@@ -166,32 +213,41 @@ cp .env.example .env          # fill in the placeholders
 docker compose up -d          # postgres, ops-api, n8n, cloudflared
 ```
 
+The API applies database migrations and the starter menu on startup.
+
 Then open n8n at `http://localhost:5678`, import both files from [`n8n/workflows/`](n8n/workflows) (**Workflows → Import from file**), add the Telegram credential, activate both workflows, and register your tunnel URL as the bot's webhook. The [operator manual](instructions_docs.html) walks through each step, including importing from the command line.
 
-**Run the evals:**
+**Run the tests and evals:**
 
 ```bash
 cd ops-api && npm install
+npm run typecheck && npm test        # set TEST_DATABASE_URL to include the API tests
 node --env-file=../.env --import tsx ../evals/run.ts
 ```
+
+For production, follow [`docs/runbook.md`](docs/runbook.md).
 
 ### Repository map
 
 ```
-ops-api/src/
-  server.ts          REST API: auth, extraction, orders, reports
-  llm/extract.ts     Claude structured extraction and model routing
-  rules.ts           business rules (hours, lead time, quantities)
-  conversation.ts    conversation memory
-db/                  numbered SQL migrations
-n8n/workflows/       exported n8n workflows
-evals/               test cases, runner and results
-docs/decisions/      architecture decision records
-instructions_docs.html  operator manual
+ops-api/
+  src/server.ts, app.ts     startup, migrations, auth, error handling
+  src/routes/               HTTP handlers: orders, extraction, reports, system
+  src/services/             rules, pricing, rate limit and budget, memory, menu
+  src/llm/extract.ts        Claude structured extraction and model routing
+  src/db/migrate.ts         applies db/migrations at startup
+  test/                     unit tests + API tests against Postgres
+db/migrations/, seed.sql    schema changes and the starter menu
+n8n/workflows/              order intake, daily prep list, error alert
+evals/                      test cases, runner and results
+deploy/                     server hardening script, Caddyfile
+scripts/                    deploy, backup, restore, n8n setup
+.github/workflows/ci.yml    test → evals → deploy
+docs/                       runbook, architecture decision records
+instructions_docs.html      operator manual
 ```
 
-## 11. What's next?
+## 12. What's next?
 
-- **Production hosting:** a hardened VPS with Caddy TLS, nightly backups with a tested restore, uptime monitoring and alerts, per-chat rate limits, a daily AI spend cap, and CI/CD that runs tests and evals before deploying.
 - **E-commerce integrations:** Shopify order and fulfillment webhooks, CRM sync to HubSpot, and a "where is my order?" support agent grounded in live Shopify data.
 - **More ways in:** an MCP server so staff can query orders from Claude Desktop, a Make scenario for weekly sales reports, and OpenRouter models added to the eval comparison.

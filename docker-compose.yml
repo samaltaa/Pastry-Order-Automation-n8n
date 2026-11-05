@@ -11,7 +11,6 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./db:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pastry} -d ${POSTGRES_DB:-pastry_ops}"]
       interval: 10s
@@ -20,8 +19,8 @@ services:
 
   ops-api:
     build:
-      context: ./ops-api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ops-api/Dockerfile
     container_name: pastry-ops-api
     restart: unless-stopped
     env_file:

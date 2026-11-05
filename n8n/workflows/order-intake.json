@@ -3,7 +3,8 @@
   "name": "Order intake",
   "active": false,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "errorWorkflow": "pastryErrorAlert"
   },
   "nodes": [
     {

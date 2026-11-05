@@ -1,0 +1,23 @@
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+{$N8N_DOMAIN} {
+	import common
+	reverse_proxy n8n:5678
+}
+
+{$STATUS_DOMAIN} {
+	import common
+	reverse_proxy uptime-kuma:3001
+}

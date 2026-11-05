@@ -49,13 +49,3 @@ CREATE TABLE IF NOT EXISTS processed_updates (
   source VARCHAR(30) NOT NULL,
   processed_at TIMESTAMPTZ DEFAULT NOW()
 );
-
-INSERT INTO menu_items (item_name, category, price)
-VALUES
-  ('Tres Leches', 'cake', 650.00),
-  ('Empanadas de carne', 'savory', 120.00),
-  ('Empanadas de queso', 'savory', 110.00),
-  ('Croissant de mantequilla', 'bread', 180.00),
-  ('Pan de queso', 'bread', 140.00),
-  ('Tarta de coco', 'cake', 420.00)
-ON CONFLICT DO NOTHING;

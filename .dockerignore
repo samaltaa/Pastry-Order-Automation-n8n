@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+.env
+.env.*
+.git
+backups
+evals
+n8n
+docs
+*.html
+*.md
+resume.*

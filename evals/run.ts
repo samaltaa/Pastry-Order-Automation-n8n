@@ -2,8 +2,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractOrder, Extraction, FAST_MODEL, STRONG_MODEL } from "../ops-api/src/llm/extract.js";
-import { advance, emptyState } from "../ops-api/src/conversation.js";
-import { MenuItem } from "../ops-api/src/rules.js";
+import { advance, emptyState } from "../ops-api/src/services/conversation.js";
+import { MenuItem } from "../ops-api/src/services/rules.js";
 
 type Case = {
   id: string;
@@ -37,11 +37,14 @@ const cases: Case[] = readFileSync(join(here, "cases.jsonl"), "utf8")
   .filter(Boolean)
   .map((line) => JSON.parse(line));
 
-const modes: { name: string; models: string[] }[] = [
-  { name: `${FAST_MODEL} only`, models: [FAST_MODEL] },
-  { name: `${STRONG_MODEL} only`, models: [STRONG_MODEL] },
-  { name: `routed (${FAST_MODEL} → ${STRONG_MODEL})`, models: [FAST_MODEL, STRONG_MODEL] },
-];
+const MIN_ACCURACY = Number(process.env.EVAL_MIN_ACCURACY ?? 0.95);
+const selected = (process.env.EVAL_MODES ?? "fast,strong,routed").split(",");
+
+const modes: { key: string; name: string; models: string[] }[] = [
+  { key: "fast", name: `${FAST_MODEL} only`, models: [FAST_MODEL] },
+  { key: "strong", name: `${STRONG_MODEL} only`, models: [STRONG_MODEL] },
+  { key: "routed", name: `routed (${FAST_MODEL} → ${STRONG_MODEL})`, models: [FAST_MODEL, STRONG_MODEL] },
+].filter((mode) => selected.includes(mode.key));
 
 function itemsKey(items: { item_id: number; quantity: number }[]): string {
   return items.map((i) => `${i.item_id}x${i.quantity}`).sort().join(",");
@@ -86,6 +89,7 @@ const report: string[] = [
   "|---|---|---|---|---|---|---|",
 ];
 const failures: string[] = [];
+const belowBar: string[] = [];
 
 for (const mode of modes) {
   const results = await pool(cases, CONCURRENCY, async (c) => {
@@ -113,11 +117,17 @@ for (const mode of modes) {
   const row = `| ${mode.name} | ${passed}/${cases.length} (${Math.round((passed / cases.length) * 100)}%) | ${injectionPassed}/${injection.length} | ${multiPassed}/${multi.length} | $${(cost / cases.length).toFixed(5)} | ${Math.round(latency / cases.length)} ms | ${Math.round((escalated / cases.length) * 100)}% |`;
   report.push(row);
   console.log(row);
+  if (passed / cases.length < MIN_ACCURACY) belowBar.push(mode.name);
   for (const r of results.filter((r) => r.failure)) {
     failures.push(`- **${mode.name}** \`${r.c.id}\`: ${r.failure}`);
   }
 }
 
 report.push("", "## Failures", "", ...(failures.length ? failures : ["None."]), "");
-writeFileSync(join(here, "results.md"), report.join("\n"));
+if (!process.env.EVAL_MODES) writeFileSync(join(here, "results.md"), report.join("\n"));
 console.log(failures.join("\n"));
+
+if (belowBar.length) {
+  console.error(`Accuracy below ${MIN_ACCURACY * 100}% for: ${belowBar.join(", ")}`);
+  process.exitCode = 1;
+}

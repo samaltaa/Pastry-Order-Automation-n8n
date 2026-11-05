@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import { ConversationContext } from "../conversation.js";
-import { checkDraft, clarificationFor, localNow, MenuItem, OrderDraft, Violation } from "../rules.js";
+import { ConversationContext } from "../services/conversation.js";
+import { checkDraft, clarificationFor, localNow, MenuItem, OrderDraft, Violation } from "../services/rules.js";
 
 export const FAST_MODEL = process.env.ANTHROPIC_MODEL_FAST || "claude-haiku-5-5";
 export const STRONG_MODEL = process.env.ANTHROPIC_MODEL_STRONG || "claude-sonnet-5-5";
