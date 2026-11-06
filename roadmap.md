@@ -182,6 +182,8 @@ Google Sheet / Excel ──(Make)──▶ sync-api /sources/sheet ──▶ Pos
 - [ ] Google Sheets Make scenario: watch changes → read all rows → POST to sync-api. Commit the blueprint. (Watch Changes works.)
 - [x] Write-back Make scenario: custom webhook → find the row by SKU → update price and stock
 - [x] Online sales reach the sheet: Shopify's `inventory_levels/update` webhook (signed, deduplicated, answered within Shopify's 5 seconds) → sync-api records the new count → the write-back scenario updates the sheet. No customer data, so no extra Shopify permissions. The sync's own stock writes are recognised and ignored.
+- [x] Low-stock alerts: a `reorder_level` mapping target (kept here, never sent to Shopify) read from the sheet's "Reorder at". A product at or below it alerts the owner on Telegram once, and again only after a restock. The demo page lists them at the top.
+- [x] Approval checks that the transform fits the field (status needs active_status or inactive_status, price needs money, ...). The sync re-checks the approved mapping before every run. Found when a yes_no status was approved and Shopify rejected 35 updates.
 - [ ] Export both Make scenarios' blueprints into `make/`
 - [x] Header drift: hold the sync, re-propose the mapping, send the Telegram approval message (Claude is asked once per change of columns)
 - [x] Write-back: demo edits on the sheet source go to a Make webhook (`MAKE_SHEET_WEBHOOK_URL`), and the page reports whether the sheet was updated

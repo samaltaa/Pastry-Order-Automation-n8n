@@ -26,6 +26,8 @@ Shopify targets:
 - taxable: whether sales tax (ITBIS, IVA, VAT, sales tax) applies
 - status: whether the product is for sale
 - image: a link (URL) to a product photo
+- reorder_level: the stock count at which the business reorders or restocks (reorder point, minimum
+  stock). Not sent to Shopify; it drives low-stock alerts.
 - ignore: anything else (internal notes, timestamps, other price lists, units of measure, ...)
 
 Transforms:
@@ -41,6 +43,9 @@ Transforms:
 
 Rules:
 - Map every column exactly once. Use each target other than ignore at most once.
+- Transforms by target: status uses active_status or inactive_status; taxable uses yes_no; price and
+  cost use money; quantity and reorder_level use integer; title, sku, product_type and barcode use
+  none, trim, trim_upper or title_case; image uses none or trim.
 - title, sku and price are required.
 - key_column is the column that uniquely identifies a product, usually the one mapped to sku.
 - If there are several prices (retail, wholesale, member), map the regular retail price to price

@@ -15,7 +15,7 @@ from app import mapping as mappings
 from app.config import Settings
 from app.llm import TIMEZONE, MappingFailed, log_call, spent_today
 from app.shopify import ShopifyClient
-from app.sources import BadSheet, UnknownTable, describe_table, full_name, qualify, store_sheet
+from app.sources import BadSheet, UnknownTable, describe_table, full_name, qualify, read_rows, store_sheet
 from app.sync import NoApprovedMapping, SyncAlreadyRunning, approved_mapping, run_sync
 
 PREVIEW_ROWS = 5
@@ -168,13 +168,15 @@ class Service:
 
     def sync(self, table: str | None, dry_run: bool, trigger: str, wait: bool = False) -> dict:
         """One sync run of a table, or of the active source. With wait, a run already in progress
-        is waited out (up to about 30 seconds) instead of refused."""
+        is waited out (up to about 30 seconds) instead of refused. Afterwards, products that just
+        ran low are reported to the owner."""
+        busy = None
         for attempt in range(LOCK_RETRIES if wait else 1):
             if attempt:
                 time.sleep(3)
             with self.pool.connection() as conn:
                 try:
-                    return run_sync(
+                    report = run_sync(
                         conn,
                         self.shopify,
                         table or self.source,
@@ -186,7 +188,75 @@ class Service:
                     raise Problem(409, str(error)) from error
                 except SyncAlreadyRunning as error:
                     busy = error
+                    continue
+            if not dry_run:
+                self.alert_low_stock()
+            return report
         raise Problem(409, str(busy))
+
+    def low_stock(self) -> list[dict]:
+        """Products for sale whose stock is at or below their reorder level, the emptiest first."""
+        with self.pool.connection() as conn:
+            try:
+                _, mapping = approved_mapping(conn, self.source)
+            except NoApprovedMapping:
+                return []
+            if "reorder_level" not in {field.target for field in mapping.fields}:
+                return []
+            rows = read_rows(conn, self.source)
+        low = []
+        for row in rows:
+            product = mappings.apply(mapping, row)
+            level, quantity = _whole(product.get("reorder_level")), _whole(product.get("quantity"))
+            if (
+                mappings.is_excluded(mapping, row)
+                or not product.get("sku")
+                or product.get("status") == "DRAFT"
+                or level is None
+                or quantity is None
+                or quantity > level
+            ):
+                continue
+            low.append(
+                {
+                    "sku": product["sku"],
+                    "title": product.get("title"),
+                    "quantity": quantity,
+                    "reorder_level": level,
+                    "image": product.get("image"),
+                }
+            )
+        return sorted(low, key=lambda product: (product["quantity"], product["sku"]))
+
+    def alert_low_stock(self) -> list[str]:
+        """Telegram message for products that just ran low. Each alerts once, and again only after
+        it was restocked above its reorder level. Never fails the caller."""
+        try:
+            low = self.low_stock()
+            with self.pool.connection() as conn:
+                conn.execute(
+                    "DELETE FROM sync.low_stock WHERE NOT (sku = ANY(%s))",
+                    ([product["sku"] for product in low],),
+                )
+                new = [
+                    product
+                    for product in low
+                    if conn.execute(
+                        "INSERT INTO sync.low_stock (sku) VALUES (%s) ON CONFLICT DO NOTHING",
+                        (product["sku"],),
+                    ).rowcount
+                ]
+        except Exception as error:
+            log.warning("Low-stock check failed: %s", error)
+            return []
+        if new:
+            lines = [
+                f"- {product['title']} ({product['sku']}): {product['quantity']} left, "
+                f"reorder at {product['reorder_level']}"
+                for product in new
+            ]
+            self.notify_owner("Running low:\n" + "\n".join(lines))
+        return [product["sku"] for product in new]
 
     def ingest_sheet(self, name: str, values: list[list]) -> dict:
         """Stores a spreadsheet snapshot from Make, then syncs it if it's the active source.
@@ -338,3 +408,10 @@ class Service:
                 )
                 .fetchall()
             )
+
+
+def _whole(value) -> int | None:
+    try:
+        return None if value is None else int(value)
+    except (TypeError, ValueError):
+        return None

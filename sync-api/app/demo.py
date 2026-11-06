@@ -159,6 +159,7 @@ def demo_router(settings: Settings) -> APIRouter:
             "mapping_id": mapping_id,
             "mapping": [field.model_dump() for field in mapping.fields],
             "products": products,
+            "low_stock": service(request).low_stock(),
             "runs": service(request).runs(5),
             "storefront": {
                 "url": settings.storefront_url or f"https://{settings.shopify_store}",

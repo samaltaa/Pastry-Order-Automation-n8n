@@ -21,9 +21,9 @@ import re
 from psycopg import Connection
 from psycopg.rows import dict_row
 
-from app.mapping import REQUIRED_TARGETS, Mapping, apply, is_excluded
+from app.mapping import LOCAL_TARGETS, REQUIRED_TARGETS, Mapping, apply, is_excluded, problems
 from app.shopify import ShopifyClient, ShopifyError
-from app.sources import full_name, read_rows
+from app.sources import column_names, full_name, read_rows
 
 LOCK_ID = 7_270_002
 COUNTS = "created updated stock_updated published unchanged excluded failed conflicts removed".split()
@@ -86,8 +86,9 @@ class SyncAlreadyRunning(Exception):
 
 
 def product_hash(product: dict) -> str:
-    """Fingerprint of everything except stock, which is compared separately."""
-    data = {key: value for key, value in product.items() if key != "quantity"}
+    """Fingerprint of what Shopify gets, except stock, which is compared separately. Fields kept only
+    here (the reorder level) are left out, so adding one doesn't resend every product."""
+    data = {key: value for key, value in product.items() if key != "quantity" and key not in LOCAL_TARGETS}
     return hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
 
 
@@ -274,6 +275,12 @@ def run_sync(
         raise SyncAlreadyRunning("A sync is already running")
     try:
         mapping_id, mapping = approved_mapping(conn, full_name(table))
+        if found := problems(mapping, column_names(conn, table)):
+            # Approved before a check existed, or the source's columns changed since: don't send
+            # Shopify values it will reject
+            raise NoApprovedMapping(
+                f"Mapping {mapping_id} can't be used: {'; '.join(found)}. Propose a new one."
+            )
         run_id = conn.execute(
             "INSERT INTO sync.runs (mapping_id, trigger, dry_run) VALUES (%s, %s, %s) RETURNING id",
             (mapping_id, trigger, dry_run),
@@ -333,6 +340,9 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
         needs_publishing = item is None or not item["published"]
         if not data_changed and not stock_changed and not needs_publishing:
             counts["unchanged"] += 1
+            if item["last_error"] and not dry_run:  # Shopify already matches: an old failure is moot
+                conn.execute("UPDATE sync.items SET last_error = NULL WHERE sku = %s", (sku,))
+                conn.commit()
             continue
 
         action = (

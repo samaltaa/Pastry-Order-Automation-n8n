@@ -30,7 +30,6 @@ def stock_event(store, sku, available):
 
 @pytest.fixture
 def synced(sheet_client, store, sheets):
-    sheets.execute("TRUNCATE sync.webhook_deliveries")
     approve_first_snapshot(sheet_client)
     send(sheet_client)
     sheet_client.outbox.clear()

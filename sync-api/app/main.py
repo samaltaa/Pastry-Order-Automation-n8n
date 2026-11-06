@@ -202,6 +202,7 @@ def create_app(
         write = svc.shopify_stock_changed(item, int(payload["available"]))
         if write:
             background.add_task(write_back, svc, write["key"], write["cells"])
+        background.add_task(svc.alert_low_stock)  # a sale may have taken it to its reorder level
         return {"ok": True, "handled": True}
 
     if settings.sheet_ingest_key:

@@ -20,6 +20,7 @@ Target = Literal[
     "taxable",
     "status",
     "image",
+    "reorder_level",
     "ignore",
 ]
 Transform = Literal[
@@ -35,6 +36,24 @@ Transform = Literal[
 ]
 
 REQUIRED_TARGETS = {"title", "sku", "price"}
+# Kept in this service, never sent to Shopify
+LOCAL_TARGETS = {"reorder_level"}
+# What each field can be cleaned with. Anything else makes a value Shopify rejects (a status of
+# true instead of ACTIVE) or a wrong one (a price read as a plain word), so it blocks approval.
+TEXT = {"none", "trim", "trim_upper", "title_case"}
+ALLOWED_TRANSFORMS = {
+    "title": TEXT,
+    "sku": TEXT,
+    "product_type": TEXT,
+    "barcode": {"none", "trim", "trim_upper"},
+    "image": {"none", "trim"},
+    "price": {"money"},
+    "cost": {"money"},
+    "quantity": {"integer"},
+    "reorder_level": {"integer"},
+    "taxable": {"yes_no"},
+    "status": {"active_status", "inactive_status"},
+}
 REVIEW_BELOW_CONFIDENCE = 0.8
 
 
@@ -68,6 +87,14 @@ def problems(mapping: Mapping, columns: list[str]) -> list[str]:
         found.append(f"Column '{column}' does not exist in the table")
     if mapping.key_column not in columns:
         found.append(f"Key column '{mapping.key_column}' does not exist in the table")
+
+    for field in mapping.fields:
+        allowed = ALLOWED_TRANSFORMS.get(field.target)
+        if allowed and field.transform not in allowed:
+            found.append(
+                f"Column '{field.source_column}' -> {field.target} can't use {field.transform}; "
+                f"use {' or '.join(sorted(allowed))}"
+            )
 
     targets = [field.target for field in mapping.fields if field.target != "ignore"]
     for target in sorted(set(targets)):

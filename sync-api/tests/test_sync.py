@@ -1,4 +1,6 @@
 import pytest
+from conftest import MAPPING
+from psycopg.types.json import Jsonb
 
 KEY = {"x-api-key": "test-key"}
 
@@ -129,3 +131,15 @@ def test_images_are_sent_on_create_and_only_again_when_they_change(db, client, s
     db.execute("UPDATE pos.sync_test SET foto = NULL WHERE codigo = 'a-1 '")
     run(client)
     assert store.by_sku("A-1")["images"] == []
+
+
+def test_an_approved_mapping_with_problems_is_not_used(db, client, store):
+    bad = {
+        **MAPPING,
+        "fields": [dict(f, transform="yes_no") if f["target"] == "status" else f for f in MAPPING["fields"]],
+    }
+    db.execute("UPDATE sync.mappings SET mapping = %s", (Jsonb(bad),))
+    response = client.post("/sync", json={"table": "sync_test"}, headers=KEY)
+    assert response.status_code == 409
+    assert "can't use yes_no" in response.json()["detail"]
+    assert store.writes == []

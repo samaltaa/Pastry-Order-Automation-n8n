@@ -69,7 +69,7 @@ def test_a_complete_mapping_has_no_problems():
 
 
 def test_every_column_must_be_mapped_once_and_exist():
-    mapping = make_mapping(*BASIC[:2], field("precio_x", "price"))
+    mapping = make_mapping(*BASIC[:2], field("precio_x", "price", "money"))
     assert problems(mapping, COLUMNS) == [
         "Column 'precio' must be mapped exactly once (found 0)",
         "Column 'precio_x' does not exist in the table",
@@ -100,3 +100,46 @@ def test_excluded_rows_match_despite_spacing_and_case():
     mapping = make_mapping(*BASIC, excluded=["REP-099"])
     assert is_excluded(mapping, {"codigo": "rep-099 "})
     assert not is_excluded(mapping, {"codigo": "REP-001"})
+
+
+def test_a_transform_that_doesnt_fit_its_field_blocks_approval():
+    mapping = Mapping.model_validate(
+        {
+            "key_column": "code",
+            "fields": [
+                {
+                    "source_column": "code",
+                    "target": "sku",
+                    "transform": "trim",
+                    "confidence": 1,
+                    "reason": "-",
+                },
+                {
+                    "source_column": "name",
+                    "target": "title",
+                    "transform": "trim",
+                    "confidence": 1,
+                    "reason": "-",
+                },
+                {
+                    "source_column": "price",
+                    "target": "price",
+                    "transform": "money",
+                    "confidence": 1,
+                    "reason": "-",
+                },
+                # yes_no gives true/false, which Shopify rejects as a product status
+                {
+                    "source_column": "online",
+                    "target": "status",
+                    "transform": "yes_no",
+                    "confidence": 1,
+                    "reason": "-",
+                },
+            ],
+            "excluded_rows": [],
+        }
+    )
+    assert problems(mapping, ["code", "name", "price", "online"]) == [
+        "Column 'online' -> status can't use yes_no; use active_status or inactive_status"
+    ]

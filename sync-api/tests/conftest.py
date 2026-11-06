@@ -189,7 +189,10 @@ class Outbox(list):
 @pytest.fixture
 def db(database_url):
     with psycopg.connect(database_url, autocommit=True) as conn:
-        conn.execute("TRUNCATE sync.items, sync.runs, sync.mappings RESTART IDENTITY CASCADE")
+        conn.execute(
+            "TRUNCATE sync.items, sync.runs, sync.mappings, sync.low_stock, sync.webhook_deliveries"
+            " RESTART IDENTITY CASCADE"
+        )
         conn.execute("DROP TABLE IF EXISTS pos.sync_test")
         conn.execute(
             "CREATE TABLE pos.sync_test"

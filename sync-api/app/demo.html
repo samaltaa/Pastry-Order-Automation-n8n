@@ -64,6 +64,15 @@
   .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
   .title { font-weight: 600; line-height: 1.3; }
   .meta { color: var(--muted); font-size: 13px; }
+  .low { margin: 20px 0 0; padding: 14px 16px; border-radius: 12px; background: var(--warn-soft); }
+  .low-head { display: flex; gap: 4px 10px; flex-wrap: wrap; align-items: baseline; margin-bottom: 10px; }
+  .low-head b { color: var(--warn); }
+  .low-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+  .low-item { justify-content: flex-start; gap: 10px; padding: 8px; font-weight: 400; text-align: left; }
+  .low-item img, .low-item .thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex: none;
+                                    background: var(--accent-soft); }
+  .low-item .name { display: block; font-weight: 600; font-size: 14px; }
+  .low-item .count { color: var(--warn); font-size: 13px; font-weight: 600; }
   .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
   .badge.good { background: var(--good-soft); color: var(--good); }
   .badge.warn { background: var(--warn-soft); color: var(--warn); }
@@ -115,6 +124,14 @@
       <div id="store-links" class="row"></div>
     </div>
   </div>
+
+  <section class="low" id="low" hidden aria-live="polite">
+    <div class="low-head">
+      <b id="low-title">Running low</b>
+      <span class="small muted">At or below their reorder level. The owner gets a Telegram alert when a product drops here.</span>
+    </div>
+    <div class="low-list" id="low-list"></div>
+  </section>
 
   <ol class="steps">
     <li><b>1. Change a product</b><span>Edit a price, or use − and + on the stock.</span></li>
@@ -264,6 +281,22 @@
     $("grid").replaceChildren(...(shown.length ? shown.map(card) : [el("p", { class: "muted" }, "No products match.")]));
   }
 
+  function renderLowStock() {
+    const low = state.low_stock;
+    $("low").hidden = low.length === 0;
+    $("low-title").textContent = `Running low (${low.length})`;
+    $("low-list").replaceChildren(...low.map((p) => el("button", {
+      type: "button", class: "low-item",
+      onclick: () => { $("search").value = p.sku; category = "All"; renderCategories(); renderGrid();
+                       $("grid").scrollIntoView({ behavior: "smooth", block: "start" }); },
+    },
+      p.image ? el("img", { src: p.image, alt: "", loading: "lazy" }) : el("span", { class: "thumb" }),
+      el("span", {},
+        el("span", { class: "name" }, p.title),
+        el("span", { class: "count" }, p.quantity === 0 ? "Sold out" : `${p.quantity} left`),
+        el("span", { class: "small muted" }, ` · reorder at ${p.reorder_level}`)))));
+  }
+
   function renderCategories() {
     const names = ["All", ...new Set(state.products.map((p) => p.category).filter(Boolean))];
     $("categories").replaceChildren(...names.map((name) => el("button", {
@@ -317,7 +350,7 @@
 
   async function load() {
     state = await api("/demo/api/state");
-    renderStore(); renderCategories(); renderGrid(); renderDetails(); updateBar();
+    renderStore(); renderLowStock(); renderCategories(); renderGrid(); renderDetails(); updateBar();
   }
 
   function describe(change, sent) {
