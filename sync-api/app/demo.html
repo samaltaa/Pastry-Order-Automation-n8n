@@ -3,199 +3,280 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bakery POS to Shopify</title>
+<title>Bakery Inventory</title>
 <style>
   :root {
-    --bg: #fbf7f2; --card: #ffffff; --ink: #2a211b; --muted: #75685d; --line: #ece3d9;
-    --accent: #b4532a; --accent-ink: #ffffff; --accent-soft: #f7e6dc;
-    --good: #2f7d4f; --good-soft: #e3f2e8; --warn: #a15c07; --warn-soft: #fbefd9; --bad: #b42318; --bad-soft: #fde8e6;
-    --shadow: 0 1px 2px rgb(42 33 27 / 6%), 0 4px 16px rgb(42 33 27 / 6%);
+    --bg: #f6f7f9; --surface: #ffffff; --sunken: #f1f3f5; --line: #e3e6ea; --line-strong: #cfd4da;
+    --ink: #1d2128; --muted: #5c6470; --faint: #8a919b;
+    --accent: #0f6b66; --accent-ink: #ffffff; --accent-soft: #e2f1ef;
+    --good: #1e7a46; --good-soft: #e4f3ea; --warn: #9a5b00; --warn-soft: #fcf1dc;
+    --bad: #b42318; --bad-soft: #fdecea; --hidden: #5c6470; --hidden-soft: #eceef1;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #17130f; --card: #221c17; --ink: #f2ebe3; --muted: #b3a597; --line: #3a3029;
-      --accent: #e8875a; --accent-ink: #1b0f08; --accent-soft: #3d2618;
-      --good: #6fcf97; --good-soft: #1d3326; --warn: #f2b45a; --warn-soft: #3a2a12; --bad: #f97066; --bad-soft: #3d1916;
-      --shadow: none;
+      --bg: #111418; --surface: #181c21; --sunken: #1f242a; --line: #2a3038; --line-strong: #3a424c;
+      --ink: #e8ebef; --muted: #a2aab4; --faint: #7c858f;
+      --accent: #4cc2b8; --accent-ink: #062321; --accent-soft: #15302e;
+      --good: #5fd08f; --good-soft: #15291e; --warn: #f0b44c; --warn-soft: #2f2410;
+      --bad: #f2786c; --bad-soft: #341917; --hidden: #a2aab4; --hidden-soft: #262b31;
     }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-  main { max-width: 1120px; margin: 0 auto; padding: 32px 16px 120px; }
-  h1 { font-size: clamp(24px, 4vw, 32px); line-height: 1.2; margin: 0 0 8px; }
-  h2 { font-size: 20px; margin: 0 0 4px; }
-  p { margin: 0 0 12px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 24px 16px 120px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -.01em; }
+  h2 { font-size: 15px; margin: 0; }
   a { color: var(--accent); }
   .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
   .small { font-size: 13px; }
-  .lead { color: var(--muted); max-width: 68ch; font-size: 16px; }
-  button, .button { font: inherit; font-weight: 600; border-radius: 10px; padding: 9px 16px; cursor: pointer;
-                    border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none;
-                    display: inline-flex; align-items: center; gap: 6px; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .num { font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  button, .button { font: inherit; font-weight: 600; border-radius: 6px; padding: 7px 12px; cursor: pointer; line-height: 1.2;
+                    border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); text-decoration: none;
+                    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  button:hover, .button:hover { border-color: var(--muted); }
   .primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .primary:hover { border-color: var(--accent); filter: brightness(1.08); }
+  .quiet { border-color: transparent; background: transparent; color: var(--muted); }
   button:disabled { opacity: .6; cursor: progress; }
-  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
-  .hero { display: grid; gap: 20px; grid-template-columns: 1.4fr 1fr; align-items: start; }
-  @media (max-width: 760px) { .hero { grid-template-columns: 1fr; } }
-  .store-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
-  .store-card code { background: var(--accent-soft); padding: 2px 8px; border-radius: 6px; font-size: 14px; }
-  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 24px 0; padding: 0; list-style: none; }
-  .steps li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
-  .steps b { display: block; }
-  .steps span { color: var(--muted); font-size: 14px; }
+  /* Header */
+  .top { display: flex; gap: 12px 24px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap;
+         padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .top p { margin: 4px 0 0; color: var(--muted); max-width: 70ch; }
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .password { font-size: 12px; color: var(--muted); }
+  .password code { font-family: var(--mono); background: var(--sunken); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; color: var(--ink); }
 
-  .result { border-radius: 12px; padding: 14px 16px; margin: 0 0 20px; border: 1px solid var(--line); background: var(--card); }
-  .result.good { background: var(--good-soft); border-color: transparent; }
-  .result.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
-  .result ul { margin: 8px 0 0; padding-left: 18px; }
+  /* KPIs */
+  .kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: 16px 0; background: var(--surface);
+          border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .kpi { padding: 12px 16px; border-left: 1px solid var(--line); text-align: left; border-radius: 0; border-top: 0; border-bottom: 0;
+         border-right: 0; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start;
+         gap: 0; font: inherit; font-weight: 400; color: inherit; background: transparent; }
+  .kpi:first-child { border-left: 0; }
+  button.kpi:hover { background: var(--sunken); }
+  .kpi .label { display: block; font-size: 12px; color: var(--muted); }
+  .kpi .value { display: block; font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .kpi .sub { display: block; font-size: 12px; color: var(--faint); }
+  .kpi.warn .value { color: var(--warn); }
+  .kpi.bad .value { color: var(--bad); }
+  @media (max-width: 720px) {
+    .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kpi { border-left: 0; border-top: 1px solid var(--line); }
+    .kpi:nth-child(-n+2) { border-top: 0; }
+    .kpi:nth-child(even) { border-left: 1px solid var(--line); }
+    .kpi:last-child { grid-column: 1 / -1; border-left: 0; }
+  }
 
-  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0 16px; }
-  .search { flex: 1 1 220px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
-  .chip { border-radius: 999px; padding: 5px 12px; font-weight: 500; font-size: 14px; }
-  .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .hint { font-size: 13px; color: var(--muted); margin: 0 0 16px; }
+  .hint b { color: var(--ink); font-weight: 600; }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow); }
-  .card.edited { outline: 2px solid var(--warn); }
-  .photo { position: relative; overflow: hidden; aspect-ratio: 4 / 3; background: var(--accent-soft); display: grid; place-items: center; color: var(--muted); font-size: 13px; }
-  .photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-  .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
-  .title { font-weight: 600; line-height: 1.3; }
-  .meta { color: var(--muted); font-size: 13px; }
-  .low { margin: 20px 0 0; padding: 14px 16px; border-radius: 12px; background: var(--warn-soft); }
-  .low-head { display: flex; gap: 4px 10px; flex-wrap: wrap; align-items: baseline; margin-bottom: 10px; }
-  .low-head b { color: var(--warn); }
-  .low-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
-  .low-item { justify-content: flex-start; gap: 10px; padding: 8px; font-weight: 400; text-align: left; }
-  .low-item img, .low-item .thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex: none;
-                                    background: var(--accent-soft); }
-  .low-item .name { display: block; font-weight: 600; font-size: 14px; }
-  .low-item .count { color: var(--warn); font-size: 13px; font-weight: 600; }
-  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
-  .badge.good { background: var(--good-soft); color: var(--good); }
-  .badge.warn { background: var(--warn-soft); color: var(--warn); }
-  .badge.muted { background: var(--line); color: var(--muted); }
-  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
-  .fields label { font-size: 12px; color: var(--muted); display: grid; gap: 3px; }
-  .money { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .money span { padding-left: 8px; color: var(--muted); }
-  .money input, .stepper input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; padding: 6px 8px; }
-  .stepper { display: flex; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-  .stepper button { padding: 0 10px; border: 0; border-radius: 0; background: transparent; font-size: 18px; line-height: 1; }
-  .stepper input { text-align: center; padding: 6px 0; }
+  /* Panels */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  .panel-head { display: flex; gap: 8px 12px; align-items: baseline; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .panel-head .small { color: var(--muted); }
+  .reorder { margin-bottom: 16px; border-left: 3px solid var(--warn); }
+  .reorder .panel-head h2 { color: var(--warn); }
+  .reorder-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+                 padding: 8px 16px; border-top: 1px solid var(--line); }
+  .reorder-row:first-of-type { border-top: 0; }
+  .reorder-row .count { font-weight: 600; color: var(--warn); }
+  .reorder-row .count.bad { color: var(--bad); }
+
+  .result { margin-bottom: 16px; }
+  .result.good { border-left: 3px solid var(--good); }
+  .result.bad { border-left: 3px solid var(--bad); }
+  .result .panel-head h2 { flex: 1; }
+  .result ul { list-style: none; margin: 0; padding: 0; }
+  .result li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 8px 16px; border-top: 1px solid var(--line); }
+  .result li:first-child { border-top: 0; }
+  .result .note { padding: 8px 16px; border-top: 1px solid var(--line); color: var(--muted); }
+  .result .note.bad { color: var(--bad); }
+
+  /* Toolbar */
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  .search { flex: 1 1 220px; padding: 7px 10px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--surface);
+            color: var(--ink); font: inherit; }
+  .segmented { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; }
+  .segmented button { border: 0; border-radius: 0; border-left: 1px solid var(--line-strong); font-weight: 500; padding: 6px 10px; }
+  .segmented button:first-child { border-left: 0; }
+  .segmented button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .segmented .n { font-variant-numeric: tabular-nums; color: inherit; opacity: .7; margin-left: 4px; }
+  select { font: inherit; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+
+  /* Inventory table */
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--sunken); white-space: nowrap; }
+  td.r, th.r { text-align: right; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: color-mix(in srgb, var(--sunken) 60%, transparent); }
+  tr.edited td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+  tr.skipped { color: var(--faint); }
+  .product { display: flex; gap: 10px; align-items: center; min-width: 220px; }
+  .thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; flex: none; background: var(--sunken); border: 1px solid var(--line); }
+  .product .name { font-weight: 600; display: block; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill.good { background: var(--good-soft); color: var(--good); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.hidden { background: var(--hidden-soft); color: var(--hidden); }
+
+  .cell { display: inline-flex; align-items: center; border: 1px solid transparent; border-radius: 6px; background: transparent; }
+  tr:hover .cell, .cell:focus-within, tr.edited .cell { border-color: var(--line-strong); background: var(--surface); }
+  .cell input { width: 64px; border: 0; background: transparent; color: var(--ink); font: inherit; font-variant-numeric: tabular-nums;
+                text-align: right; padding: 5px 6px; }
+  .cell input:focus { outline: none; }
+  .cell .unit { color: var(--faint); padding-left: 6px; }
+  .cell button { border: 0; border-radius: 0; background: transparent; padding: 4px 8px; font-size: 15px; color: var(--muted); }
+  .cell button:hover { color: var(--ink); }
+  .stock input { width: 44px; text-align: center; padding: 5px 0; }
   input[type=number] { -moz-appearance: textfield; appearance: textfield; }
   input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .empty { padding: 24px 16px; color: var(--muted); }
 
-  .bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(560px, calc(100% - 32px));
-         background: var(--ink); color: var(--bg); border-radius: 14px; padding: 10px 10px 10px 18px; display: flex;
-         align-items: center; gap: 10px; box-shadow: 0 8px 30px rgb(0 0 0 / 25%); }
+  @media (max-width: 720px) {
+    .inventory thead { display: none; }
+    .inventory tr { display: grid; grid-template-columns: 104px 132px minmax(0, 1fr); gap: 8px 12px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    .inventory td { display: block; padding: 0; border: 0; }
+    .inventory td.c-product { grid-column: 1 / 3; }
+    .inventory td.c-status { grid-column: 3; justify-self: end; }
+    .inventory td.c-category, .inventory td.c-reorder { display: none; }
+    .inventory td.c-price { grid-column: 1; justify-self: start; }
+    .inventory td.c-stock { grid-column: 2; }
+    .inventory td.c-store { grid-column: 3; justify-self: end; align-self: center; }
+    .inventory .cell { border-color: var(--line-strong); background: var(--surface); }
+    .product { min-width: 0; }
+  }
+
+  /* Pending changes bar */
+  .bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(620px, calc(100% - 32px));
+         background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 8px 8px 16px;
+         display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 24px rgb(0 0 0 / 14%); }
   .bar[hidden] { display: none; }
-  .bar span { flex: 1; }
-  .bar .ghost { background: transparent; color: var(--bg); border-color: transparent; font-weight: 500; }
+  .bar .text { flex: 1; }
+  .bar .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); margin-right: 8px; }
 
-  section { margin-top: 40px; }
-  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
-  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center; cursor: pointer; display: block; }
-  .drop:hover { border-color: var(--accent); }
+  /* Secondary sections */
+  section { margin-top: 32px; }
+  section > h2 { margin-bottom: 4px; }
+  section > p { margin: 0 0 12px; color: var(--muted); }
+  .drop { border: 1px dashed var(--line-strong); border-radius: 6px; padding: 18px; text-align: center; cursor: pointer; display: block; margin: 16px; }
+  .drop:hover { border-color: var(--accent); background: var(--accent-soft); }
   .drop input { display: none; }
-  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-top: 12px; }
-  summary { cursor: pointer; font-weight: 600; }
-  .scroll { overflow-x: auto; margin-top: 12px; }
-  table { border-collapse: collapse; width: 100%; font-size: 14px; }
-  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
-  td.wrap { white-space: normal; min-width: 200px; }
-  footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+  .panel-body { padding: 0 16px 16px; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
+  summary { cursor: pointer; font-weight: 600; padding: 10px 16px; }
+  details[open] summary { border-bottom: 1px solid var(--line); }
+  details > p { margin: 10px 16px; }
+  .ref td, .ref th { font-size: 13px; white-space: nowrap; }
+  .ref td.wrap { white-space: normal; min-width: 220px; color: var(--muted); }
+  footer { margin-top: 40px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
 <body>
 <main>
-  <div class="hero">
+  <header class="top">
     <div>
-      <h1 id="headline">A bakery's point-of-sale, kept in sync with its Shopify store</h1>
-      <p class="lead" id="lead">These products live in the bakery's register system (its POS). Change a price or a stock count
-        here, the way the staff would at the counter, then sync. The change shows up in the online store a moment later.</p>
+      <h1>Bakery inventory</h1>
+      <p id="subtitle">A Dominican bakery's stock, kept in sync with its Shopify store.</p>
     </div>
-    <div class="store-card" id="store-card">
-      <b>The live Shopify store</b>
-      <p class="muted small" style="margin: 4px 0 10px">A real Shopify development store that this demo updates.</p>
-      <div id="store-links" class="row"></div>
-    </div>
-  </div>
+    <div class="actions" id="actions"></div>
+  </header>
 
-  <section class="low" id="low" hidden aria-live="polite">
-    <div class="low-head">
-      <b id="low-title">Running low</b>
-      <span class="small muted">At or below their reorder level. The owner gets a Telegram alert when a product drops here.</span>
-    </div>
-    <div class="low-list" id="low-list"></div>
-  </section>
+  <div class="kpis" id="kpis" aria-label="Inventory summary"></div>
 
-  <ol class="steps">
-    <li><b>1. Change a product</b><span>Edit a price, or use − and + on the stock.</span></li>
-    <li><b>2. Sync to Shopify</b><span>Only the products you changed are sent.</span></li>
-    <li><b>3. See it in the store</b><span>Use "View in store" on the product.</span></li>
-    <li><b>4. Try your own list</b><span>Upload a spreadsheet and see how AI reads it.</span></li>
-  </ol>
+  <p class="hint" id="hint"><b>Try it:</b> change a price or a stock count in the table, then <b>Sync to Shopify</b>.</p>
 
   <div id="result" aria-live="polite"></div>
 
-  <div class="toolbar">
-    <input class="search" id="search" type="search" placeholder="Search products" aria-label="Search products">
-    <div class="row" id="categories"></div>
+  <div class="panel reorder" id="reorder" hidden>
+    <div class="panel-head">
+      <h2 id="reorder-title">Needs reorder</h2>
+      <span class="small">At or below the reorder level. The owner gets a Telegram alert when a product drops here.</span>
+    </div>
+    <div id="reorder-list"></div>
   </div>
-  <div class="grid" id="grid"><p class="muted">Loading products...</p></div>
+
+  <div class="panel">
+    <div class="toolbar">
+      <input class="search" id="search" type="search" placeholder="Search by name or SKU" aria-label="Search by name or SKU">
+      <div class="segmented" id="filters" role="group" aria-label="Filter by stock"></div>
+      <select id="category" aria-label="Category"></select>
+    </div>
+    <div class="scroll">
+      <table class="inventory" aria-label="Products">
+        <thead>
+          <tr>
+            <th scope="col">Product</th>
+            <th scope="col">Category</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="r">Price</th>
+            <th scope="col" class="r">On hand</th>
+            <th scope="col" class="r">Reorder at</th>
+            <th scope="col" class="r">Store</th>
+          </tr>
+        </thead>
+        <tbody id="rows"><tr><td colspan="7" class="empty">Loading inventory...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 
   <section>
     <h2>Try it with your own product list</h2>
-    <p class="muted">Upload a product export from any register or spreadsheet. AI (Claude) works out which column is the
-      name, price, stock and so on, and shows how your first rows would look in Shopify. Nothing is saved or sent to the store.</p>
+    <p>Upload an export from any register or spreadsheet. Claude works out which column is the name, price, stock and so on,
+      and shows how your first rows would arrive in Shopify. Nothing is saved or sent to the store.</p>
     <div class="panel">
       <label class="drop" id="drop">
         <input type="file" id="csv" accept=".csv,text/csv,text/plain">
-        <b>Choose a CSV file</b> <span class="muted">or drop it here (up to 200 KB)</span>
+        <b>Choose a CSV file</b> <span class="muted">or drop it here · up to 200 KB</span>
       </label>
-      <p class="small muted" style="margin: 10px 0 0">No file handy? <a href="#" id="sample">Download a sample</a>.
-        Limited to 3 uploads an hour.</p>
-      <div id="csv-status" class="small" style="margin-top: 10px"></div>
-      <div id="csv-result"></div>
+      <div class="panel-body">
+        <p class="small muted" style="margin: 0">No file handy? <a href="#" id="sample">Download a sample</a>. Limited to 3 uploads an hour.</p>
+        <div id="csv-status" class="small" style="margin-top: 10px"></div>
+        <div id="csv-result"></div>
+      </div>
     </div>
   </section>
 
   <section>
-    <h2>Behind the scenes</h2>
-    <p class="muted">For the technically curious: how the <span class="source-name">register</span>'s columns were matched to Shopify, and the sync history.</p>
+    <h2>How it works</h2>
+    <p>The <span class="source-name">register</span>'s columns, as matched to Shopify, and the sync history.</p>
     <details>
-      <summary>How the <span class="source-name">register</span>'s columns map to Shopify</summary>
-      <p class="small muted" style="margin-top: 10px">Claude proposed this once, from the column names and sample rows.
-        A person approved it. Every sync applies it with plain, tested code.</p>
-      <div class="scroll"><table id="mapping"></table></div>
+      <summary>Column mapping</summary>
+      <p class="small muted">Claude proposed this from the column names and sample rows. A person approved it. Every sync applies it with plain, tested code.</p>
+      <div class="scroll"><table class="ref" id="mapping"></table></div>
     </details>
     <details>
-      <summary>Recent syncs</summary>
-      <p class="small muted" style="margin-top: 10px">The store also syncs on its own every 15 minutes.</p>
-      <div class="scroll"><table id="runs"></table></div>
+      <summary>Sync history</summary>
+      <p class="small muted">The store also syncs on its own every 15 minutes, and whenever the sheet changes.</p>
+      <div class="scroll"><table class="ref" id="runs"></table></div>
     </details>
   </section>
 
   <footer>
-    Built by Grace Peralta. <a href="https://github.com/samaltaa/Pastry-Order-Automation-n8n">Source code</a> ·
-    <a href="https://github.com/samaltaa/Pastry-Order-Automation-n8n/blob/main/db/pos/IMAGE_CREDITS.md">Photo credits</a>
-    (Wikimedia Commons)
+    Built by Grace Peralta · <a href="https://github.com/samaltaa/Pastry-Order-Automation-n8n">Source code</a> ·
+    <a href="https://github.com/samaltaa/Pastry-Order-Automation-n8n/blob/main/db/pos/IMAGE_CREDITS.md">Photo credits</a> (Wikimedia Commons)
   </footer>
 </main>
 
-<div class="bar" id="bar" hidden>
-  <span id="bar-text"></span>
-  <button class="ghost" id="discard">Discard</button>
+<div class="bar" id="bar" hidden role="region" aria-label="Unsaved changes">
+  <span class="text"><span class="dot" aria-hidden="true"></span><span id="bar-text"></span></span>
+  <button class="quiet" id="discard">Discard</button>
   <button class="primary" id="sync">Sync to Shopify</button>
 </div>
 
 <script>
   const $ = (id) => document.getElementById(id);
   const money = (value) => `$${Number(value).toFixed(2)}`;
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
   // Builds elements with textContent only, so nothing from the data or an upload is treated as HTML.
   function el(tag, props = {}, ...children) {
@@ -224,153 +305,205 @@
   }
 
   let state = null;
-  let category = "All";
+  let filter = "all";
+  let category = "";
   const pending = new Map();   // key -> { key, price, quantity }: edits waiting for "Sync to Shopify"
 
+  const onSheet = () => state.source.kind === "sheet";
+  const sourceName = () => (onSheet() ? "sheet" : "register");
+  const products = () => state.products.filter((p) => !p.excluded);
   const storeUrl = (p) => state.storefront.url && p.handle ? `${state.storefront.url}/products/${p.handle}` : null;
   const inStore = (p) => p.shopify && p.shopify.published && p.status === "ACTIVE";
+  const current = (p) => pending.get(p.key) ?? { price: p.price, quantity: p.quantity };
+  const isOut = (p) => p.status === "ACTIVE" && Number(current(p).quantity) === 0;
+  const needsReorder = (p) => p.status === "ACTIVE" && p.reorder_level != null && Number(current(p).quantity) <= p.reorder_level;
+  const isLow = (p) => needsReorder(p) && !isOut(p);
 
-  function badge(p) {
-    if (p.excluded) return el("span", { class: "badge muted" }, "Not a product: skipped");
-    if (pending.has(p.key)) return el("span", { class: "badge warn" }, "Edited: not synced yet");
-    if (p.status === "DRAFT") return el("span", { class: "badge muted" }, "Hidden in store (inactive)");
-    if (inStore(p)) return el("span", { class: "badge good" }, "In the store");
-    return el("span", { class: "badge warn" }, "Not in the store yet");
+  function status(p) {
+    if (p.excluded) return ["hidden", "Skipped"];
+    if (pending.has(p.key)) return ["warn", "Unsaved"];
+    if (p.status === "DRAFT") return ["hidden", "Hidden"];
+    if (isOut(p)) return ["bad", "Out of stock"];
+    if (isLow(p)) return ["warn", "Low"];
+    if (inStore(p)) return ["good", "In stock"];
+    return ["warn", "Not synced"];
+  }
+  const pill = (p) => { const [tone, text] = status(p); return el("span", { class: `pill ${tone}` }, text); };
+
+  function renderHeader() {
+    const { url, password } = state.storefront;
+    $("actions").replaceChildren(
+      ...(onSheet() && state.source.url
+        ? [el("a", { class: "button", href: state.source.url, target: "_blank", rel: "noopener" }, "Open Google Sheet")] : []),
+      el("a", { class: "button primary", href: url, target: "_blank", rel: "noopener" }, "Open the store"),
+      ...(password ? [el("span", { class: "password" }, "Store password ", el("code", {}, password))] : []),
+    );
+    $("subtitle").textContent = onSheet()
+      ? "A Dominican bakery's stock, managed in a Google Sheet and kept in sync with its Shopify store."
+      : "A Dominican bakery's register (POS) stock, kept in sync with its Shopify store.";
+    $("hint").replaceChildren(el("b", {}, "Try it: "), "change a price or a stock count in the table, then ",
+      el("b", {}, "Sync to Shopify"), onSheet() ? ". The change is also written back into the Google Sheet." : ".");
+    document.querySelectorAll(".source-name").forEach((node) => { node.textContent = sourceName(); });
   }
 
-  function card(p) {
+  function renderKpis() {
+    const list = products();
+    const units = list.reduce((sum, p) => sum + (Number(p.quantity) || 0), 0);
+    const low = list.filter(isLow).length;
+    const out = list.filter(isOut).length;
+    const last = state.runs[0];
+    const kpi = (cls, label, value, sub, onclick) => el(onclick ? "button" : "div",
+      { class: `kpi ${cls}`, type: onclick ? "button" : undefined, onclick },
+      el("span", { class: "label" }, label), el("span", { class: "value" }, value), sub ? el("span", { class: "sub" }, sub) : null);
+    $("kpis").replaceChildren(
+      kpi("", "Products", list.length, `${list.filter((p) => p.status === "ACTIVE").length} for sale`),
+      kpi("", "Units on hand", units.toLocaleString("en-US")),
+      kpi(low ? "warn" : "", "Low stock", low, "at or below reorder level", low ? () => setFilter("low") : null),
+      kpi(out ? "bad" : "", "Out of stock", out, "for sale, none left", out ? () => setFilter("out") : null),
+      kpi("", "Last sync", last ? last.started_local : "never",
+        last ? ({ demo: "from this page", schedule: "scheduled", manual: "by the owner", sheet: "after a sheet edit" }[last.trigger] || last.trigger) : null),
+    );
+  }
+
+  function renderReorder() {
+    const low = products().filter(needsReorder).sort((a, b) => Number(a.quantity) - Number(b.quantity));
+    $("reorder").hidden = low.length === 0;
+    $("reorder-title").textContent = `Needs reorder (${low.length})`;
+    $("reorder-list").replaceChildren(...low.map((p) => el("div", { class: "reorder-row" },
+      p.image ? el("img", { class: "thumb", src: p.image, alt: "", loading: "lazy" }) : el("span", { class: "thumb" }),
+      el("span", {},
+        el("span", { style: "font-weight: 600" }, p.title), " ", el("span", { class: "mono faint" }, p.sku),
+        el("span", { class: "num small", style: "display: block" },
+          el("span", { class: `count${Number(p.quantity) === 0 ? " bad" : ""}` }, Number(p.quantity) === 0 ? "Sold out" : `${p.quantity} left`),
+          el("span", { class: "faint" }, ` · reorder at ${p.reorder_level}`))),
+      el("button", { type: "button", onclick: () => { $("search").value = p.sku; setFilter("all"); $("rows").scrollIntoView({ behavior: "smooth", block: "start" }); } }, "Show"),
+    )));
+  }
+
+  function setFilter(next) {
+    filter = next;
+    renderFilters();
+    renderRows();
+  }
+
+  function renderFilters() {
+    const list = products();
+    const counts = { all: list.length, low: list.filter(isLow).length, out: list.filter(isOut).length,
+                     hidden: list.filter((p) => p.status === "DRAFT").length };
+    const labels = { all: "All", low: "Low", out: "Out", hidden: "Hidden" };
+    $("filters").replaceChildren(...Object.keys(labels).map((key) => el("button", {
+      type: "button", ariaPressed: String(key === filter), onclick: () => setFilter(key),
+    }, labels[key], el("span", { class: "n" }, counts[key]))));
+    const names = [...new Set(list.map((p) => p.category).filter(Boolean))].sort();
+    $("category").replaceChildren(el("option", { value: "" }, "All categories"),
+      ...names.map((name) => el("option", { value: name, selected: name === category }, name)));
+  }
+
+  function row(p) {
     const edit = pending.get(p.key);
     const price = el("input", { type: "number", step: "0.01", min: "0.25", max: "500", inputMode: "decimal",
-                                value: edit ? edit.price : p.price ?? "", disabled: p.excluded, ariaLabel: `Price of ${p.title}` });
+                                value: edit ? edit.price : p.price ?? "", ariaLabel: `Price of ${p.title}` });
     const stock = el("input", { type: "number", step: "1", min: "0", max: "999", inputMode: "numeric",
-                                value: edit ? edit.quantity : p.quantity ?? "", disabled: p.excluded, ariaLabel: `Stock of ${p.title}` });
+                                value: edit ? edit.quantity : p.quantity ?? "", ariaLabel: `Stock on hand of ${p.title}` });
     const remember = () => {
       pending.set(p.key, { key: p.key, price: Number(price.value), quantity: Number(stock.value) });
       node.classList.add("edited");
-      node.querySelector(".badge").replaceWith(badge(p));
+      node.querySelector(".pill").replaceWith(pill(p));
       updateBar();
     };
     price.addEventListener("input", remember);
     stock.addEventListener("input", remember);
     const step = (delta) => () => { stock.value = Math.max(0, Math.min(999, Number(stock.value || 0) + delta)); remember(); };
+    const link = inStore(p) && storeUrl(p) ? el("a", { href: storeUrl(p), target: "_blank", rel: "noopener", class: "small" }, "View") : null;
 
-    const link = inStore(p) && storeUrl(p)
-      ? el("a", { href: storeUrl(p), target: "_blank", rel: "noopener", class: "small" }, "View in store ↗") : null;
-    const node = el("article", { class: `card${edit ? " edited" : ""}` },
-      el("div", { class: "photo" }, p.image ? el("img", { src: p.image, alt: p.title, loading: "lazy" }) : "No photo"),
-      el("div", { class: "body" },
-        el("div", { class: "title" }, p.title ?? p.key),
-        el("div", { class: "meta" }, [p.sku, p.category].filter(Boolean).join(" · ")),
-        el("div", { class: "row" }, badge(p), link),
-        p.excluded ? null : el("div", { class: "fields" },
-          el("label", {}, "Price", el("div", { class: "money" }, el("span", {}, "$"), price)),
-          el("label", {}, "Stock", el("div", { class: "stepper" },
-            el("button", { type: "button", onclick: step(-1), ariaLabel: "One less" }, "−"), stock,
-            el("button", { type: "button", onclick: step(1), ariaLabel: "One more" }, "+"))),
-        ),
-      ),
+    const node = el("tr", { class: [edit ? "edited" : "", p.excluded ? "skipped" : ""].join(" ").trim() },
+      el("td", { class: "c-product" }, el("div", { class: "product" },
+        p.image ? el("img", { class: "thumb", src: p.image, alt: "", loading: "lazy" }) : el("span", { class: "thumb" }),
+        el("span", {}, el("span", { class: "name" }, p.title ?? p.key), el("span", { class: "mono faint" }, p.sku ?? p.key)))),
+      el("td", { class: "c-category muted" }, p.category ?? ""),
+      el("td", { class: "c-status" }, pill(p)),
+      el("td", { class: "c-price r" }, p.excluded ? "" : el("span", { class: "cell" }, el("span", { class: "unit" }, "$"), price)),
+      el("td", { class: "c-stock r" }, p.excluded ? "" : el("span", { class: "cell stock" },
+        el("button", { type: "button", onclick: step(-1), ariaLabel: `One less ${p.title}` }, "−"), stock,
+        el("button", { type: "button", onclick: step(1), ariaLabel: `One more ${p.title}` }, "+"))),
+      el("td", { class: "c-reorder r num muted" }, p.reorder_level ?? "–"),
+      el("td", { class: "c-store r" }, link),
     );
     return node;
   }
 
-  function renderGrid() {
+  function renderRows() {
     const query = $("search").value.trim().toLowerCase();
     const shown = state.products.filter((p) =>
-      (category === "All" || p.category === category) &&
+      (!category || p.category === category) &&
+      (filter === "all" || (!p.excluded && ({ low: isLow, out: isOut, hidden: (q) => q.status === "DRAFT" }[filter])(p))) &&
       (!query || `${p.title} ${p.sku} ${p.category}`.toLowerCase().includes(query)));
-    $("grid").replaceChildren(...(shown.length ? shown.map(card) : [el("p", { class: "muted" }, "No products match.")]));
-  }
-
-  function renderLowStock() {
-    const low = state.low_stock;
-    $("low").hidden = low.length === 0;
-    $("low-title").textContent = `Running low (${low.length})`;
-    $("low-list").replaceChildren(...low.map((p) => el("button", {
-      type: "button", class: "low-item",
-      onclick: () => { $("search").value = p.sku; category = "All"; renderCategories(); renderGrid();
-                       $("grid").scrollIntoView({ behavior: "smooth", block: "start" }); },
-    },
-      p.image ? el("img", { src: p.image, alt: "", loading: "lazy" }) : el("span", { class: "thumb" }),
-      el("span", {},
-        el("span", { class: "name" }, p.title),
-        el("span", { class: "count" }, p.quantity === 0 ? "Sold out" : `${p.quantity} left`),
-        el("span", { class: "small muted" }, ` · reorder at ${p.reorder_level}`)))));
-  }
-
-  function renderCategories() {
-    const names = ["All", ...new Set(state.products.map((p) => p.category).filter(Boolean))];
-    $("categories").replaceChildren(...names.map((name) => el("button", {
-      type: "button", class: "chip", ariaPressed: String(name === category),
-      onclick: () => { category = name; renderCategories(); renderGrid(); },
-    }, name)));
-  }
-
-  const onSheet = () => state.source.kind === "sheet";
-  const sourceName = () => (onSheet() ? "sheet" : "register");
-
-  function renderStore() {
-    const { url, password } = state.storefront;
-    $("store-links").replaceChildren(
-      el("a", { class: "button primary", href: url, target: "_blank", rel: "noopener" }, "Open the store ↗"),
-      ...(onSheet() && state.source.url
-        ? [el("a", { class: "button", href: state.source.url, target: "_blank", rel: "noopener" }, "Open the Google Sheet ↗")]
-        : []),
-      ...(password ? [el("span", { class: "small" }, "Password: ", el("code", {}, password))] : []),
-    );
-    document.querySelectorAll(".source-name").forEach((node) => { node.textContent = sourceName(); });
-    if (onSheet()) {
-      $("headline").textContent = "A bakery's inventory spreadsheet, kept in sync with its Shopify store";
-      $("lead").textContent = "These products live in the bakery's Google Sheet. Edit the sheet, or change a price or stock "
-        + "count here and sync: the online store updates a moment later, and your change is written back into the sheet.";
-    }
+    $("rows").replaceChildren(...(shown.length ? shown.map(row)
+      : [el("tr", {}, el("td", { colSpan: 7, class: "empty" }, "No products match these filters."))]));
   }
 
   function renderDetails() {
     $("mapping").replaceChildren(
-      el("thead", {}, el("tr", {}, ["Register column", "Shopify field", "How it's cleaned", "Confidence", "Why"].map((h) => el("th", {}, h)))),
+      el("thead", {}, el("tr", {}, [`${onSheet() ? "Sheet" : "Register"} column`, "Shopify field", "Cleaned with", "Confidence", "Why"]
+        .map((h) => el("th", { scope: "col" }, h)))),
       el("tbody", {}, state.mapping.map((f) => el("tr", {},
         el("td", {}, f.source_column),
-        el("td", {}, f.target === "ignore" ? el("span", { class: "muted" }, "not used") : f.target),
-        el("td", {}, f.target === "ignore" ? "" : f.transform),
-        el("td", {}, `${Math.round(f.confidence * 100)}%`),
-        el("td", { class: "wrap muted" }, f.reason)))));
+        el("td", {}, f.target === "ignore" ? el("span", { class: "faint" }, "not used") : el("span", { class: "mono" }, f.target)),
+        el("td", { class: "mono" }, f.target === "ignore" ? "" : f.transform),
+        el("td", { class: "num" }, `${Math.round(f.confidence * 100)}%`),
+        el("td", { class: "wrap" }, f.reason)))));
     $("runs").replaceChildren(
-      el("thead", {}, el("tr", {}, ["When", "Started by", "Result", "Changes"].map((h) => el("th", {}, h)))),
+      el("thead", {}, el("tr", {}, ["When", "Started by", "Result", "New", "Updated", "Stock", "Failed"].map((h) => el("th", { scope: "col" }, h)))),
       el("tbody", {}, state.runs.map((r) => el("tr", {},
-        el("td", {}, r.started_local),
+        el("td", { class: "num" }, r.started_local),
         el("td", {}, { demo: "this page", schedule: "schedule", manual: "owner", sheet: "sheet edit" }[r.trigger] || r.trigger),
-        el("td", {}, r.status === "succeeded" ? (r.failed || r.conflicts ? "done, with notes" : "done") : r.status),
-        el("td", { class: "muted" }, `${r.created} new, ${r.updated} updated, ${r.stock_updated} stock changes`)))));
+        el("td", {}, el("span", { class: `pill ${r.status === "succeeded" ? (r.failed ? "warn" : "good") : "bad"}` }, r.status === "succeeded" ? "Done" : r.status)),
+        el("td", { class: "num" }, r.created), el("td", { class: "num" }, r.updated),
+        el("td", { class: "num" }, r.stock_updated), el("td", { class: "num" }, r.failed)))));
   }
 
   function updateBar() {
     $("bar").hidden = pending.size === 0;
-    $("bar-text").textContent = `${pending.size} product${pending.size === 1 ? "" : "s"} edited`;
+    $("bar-text").textContent = `${plural(pending.size, "unsaved change")}`;
+  }
+
+  function renderAll() {
+    renderHeader(); renderKpis(); renderReorder(); renderFilters(); renderRows(); renderDetails(); updateBar();
   }
 
   async function load() {
     state = await api("/demo/api/state");
-    renderStore(); renderLowStock(); renderCategories(); renderGrid(); renderDetails(); updateBar();
+    renderAll();
   }
 
   function describe(change, sent) {
     const product = state.products.find((p) => p.sku === change.sku);
     const name = change.title || product?.title || change.sku;
     const link = product && inStore(product) && storeUrl(product)
-      ? el("a", { href: storeUrl(product), target: "_blank", rel: "noopener" }, "View in store ↗") : null;
-    if (change.action === "failed") return el("li", {}, `${name}: not synced (${change.detail})`);
-    if (change.action === "remove") return el("li", {}, `${name}: no longer in the ${sourceName()}, so it's hidden in the store (Draft).`);
-    if (change.conflict) return el("li", {}, `${name}: the store had sold some since the last sync. The ${sourceName()}'s count was applied. `, link);
-    const edit = sent.get(product?.key);
-    const what = edit ? `now ${money(edit.price)}, ${edit.quantity} in stock` : { create: "added to the store", publish: "published" }[change.action] || "updated";
-    return el("li", {}, `${name}: ${what}. `, link);
+      ? el("a", { href: storeUrl(product), target: "_blank", rel: "noopener", class: "small" }, "View in store") : el("span");
+    let what;
+    if (change.action === "failed") what = el("span", { style: "color: var(--bad)" }, `not synced: ${change.detail}`);
+    else if (change.action === "remove") what = `removed from the ${sourceName()}, now hidden in the store`;
+    else if (change.conflict) what = `the store had sold some since the last sync; the ${sourceName()}'s count was applied`;
+    else {
+      const edit = sent.get(product?.key);
+      what = edit ? `${money(edit.price)} · ${edit.quantity} on hand` : ({ create: "added to the store", publish: "published" }[change.action] || "updated");
+    }
+    return el("li", {}, el("span", {}, el("b", {}, name), el("span", { class: "muted" }, " · "), what), link);
   }
 
   function sheetNote(sheet) {
     if (!sheet) return null;
-    if (!sheet.failed.length) return el("p", {}, `✓ Written back to the Google Sheet (${sheet.written.length} row${sheet.written.length === 1 ? "" : "s"}).`);
-    return el("p", {}, `The store has the change, but the Google Sheet couldn't be updated for ${sheet.failed.join(", ")}. `
+    if (!sheet.failed.length) return el("div", { class: "note" }, `Written back to the Google Sheet: ${plural(sheet.written.length, "row")}.`);
+    return el("div", { class: "note bad" }, `The store has the change, but the Google Sheet couldn't be updated for ${sheet.failed.join(", ")}. `
       + "The sheet still shows the old value, and the next edit there will put it back.");
+  }
+
+  function showResult(tone, title, ...body) {
+    $("result").replaceChildren(el("div", { class: `panel result ${tone}` },
+      el("div", { class: "panel-head" }, el("h2", {}, title),
+        el("button", { type: "button", class: "quiet", ariaLabel: "Dismiss", onclick: () => $("result").replaceChildren() }, "Dismiss")),
+      ...body));
   }
 
   $("sync").addEventListener("click", async () => {
@@ -383,59 +516,58 @@
       pending.clear();
       await load();
       const changed = report.changes;
-      $("result").replaceChildren(el("div", { class: "result good" },
-        el("b", {}, changed.length ? `Synced. ${changed.length} product${changed.length === 1 ? "" : "s"} updated in Shopify.` : "Synced. Nothing had changed."),
-        changed.length ? el("ul", {}, changed.map((c) => describe(c, sent))) : null,
-        sheetNote(report.sheet)));
+      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      showResult("good", changed.length ? `Synced ${plural(changed.length, "product")} to Shopify · ${time}` : `Synced · nothing had changed · ${time}`,
+        changed.length ? el("ul", {}, changed.map((c) => describe(c, sent))) : null, sheetNote(report.sheet));
     } catch (error) {
-      $("result").replaceChildren(el("div", { class: "result bad" }, el("b", {}, "Not synced: "), error.message));
+      showResult("bad", "Not synced", el("div", { class: "note bad" }, error.message));
     } finally {
       button.disabled = false;
       button.textContent = "Sync to Shopify";
-      $("result").scrollIntoView({ behavior: "smooth", block: "center" });
+      $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   });
 
-  $("discard").addEventListener("click", () => { pending.clear(); renderGrid(); updateBar(); });
-  $("search").addEventListener("input", renderGrid);
+  $("discard").addEventListener("click", () => { pending.clear(); renderAll(); });
+  $("search").addEventListener("input", renderRows);
+  $("category").addEventListener("change", (event) => { category = event.target.value; renderRows(); });
 
   const SAMPLE = "Item Name,SKU,Category,Regular Price,Wholesale Price,On Hand,Active,Taxable\n" +
     "Banana Bread Loaf,BB-01,Bread,8.50,6.00,12,Y,N\nLemon Bar,LB-02,Bars,3.25,2.10,30,Y,Y\n" +
     "Pumpkin Pie (seasonal),PP-03,Pies,18.00,14.00,0,N,Y\n";
   $("sample").addEventListener("click", (event) => {
     event.preventDefault();
-    const link = el("a", { href: URL.createObjectURL(new Blob([SAMPLE], { type: "text/csv" })), download: "sample-products.csv" });
-    link.click();
+    el("a", { href: URL.createObjectURL(new Blob([SAMPLE], { type: "text/csv" })), download: "sample-products.csv" }).click();
   });
 
   async function upload(file) {
     if (!file) return;
     if (file.size > 200000) { $("csv-status").textContent = "That file is over 200 KB."; return; }
-    $("csv-status").textContent = "Reading your columns with AI. This takes about 10 seconds...";
+    $("csv-status").textContent = "Reading your columns with Claude. This takes about 10 seconds...";
     $("csv-result").replaceChildren();
     try {
       const report = await api("/demo/api/csv", { method: "POST", body: JSON.stringify({ content: await file.text() }) });
       $("csv-status").replaceChildren(report.problems.length
-        ? el("span", { style: "color: var(--bad)" }, `This would need a fix before syncing: ${report.problems.join("; ")}`)
-        : el("span", { style: "color: var(--good)" }, "All set: this file could be synced to Shopify with this mapping."));
+        ? el("span", { class: "pill bad" }, `Needs a fix before syncing: ${report.problems.join("; ")}`)
+        : el("span", { class: "pill good" }, "Ready: this file could sync to Shopify with this mapping"));
       const fields = report.mapping.fields.filter((f) => f.target !== "ignore").map((f) => f.target);
       $("csv-result").replaceChildren(
-        el("h3", { style: "margin: 18px 0 0" }, "How each column was read"),
-        el("div", { class: "scroll" }, el("table", {},
-          el("thead", {}, el("tr", {}, ["Your column", "Becomes", "Confidence", "Why"].map((h) => el("th", {}, h)))),
+        el("h2", { style: "margin: 16px 0 8px" }, "How each column was read"),
+        el("div", { class: "scroll" }, el("table", { class: "ref" },
+          el("thead", {}, el("tr", {}, ["Your column", "Becomes", "Confidence", "Why"].map((h) => el("th", { scope: "col" }, h)))),
           el("tbody", {}, report.mapping.fields.map((f) => el("tr", {},
             el("td", {}, f.source_column),
-            el("td", {}, f.target === "ignore" ? el("span", { class: "muted" }, "not used") : f.target),
-            el("td", {}, `${Math.round(f.confidence * 100)}%`),
-            el("td", { class: "wrap muted" }, f.reason)))))),
-        el("h3", { style: "margin: 18px 0 0" }, "Your first rows, as Shopify would get them"),
-        el("div", { class: "scroll" }, el("table", {},
-          el("thead", {}, el("tr", {}, fields.map((h) => el("th", {}, h)))),
-          el("tbody", {}, report.preview.map((row) => el("tr", {},
-            fields.map((f) => el("td", {}, row.excluded ? "(skipped)" : String(row.shopify[f] ?? "")))))))),
+            el("td", {}, f.target === "ignore" ? el("span", { class: "faint" }, "not used") : el("span", { class: "mono" }, f.target)),
+            el("td", { class: "num" }, `${Math.round(f.confidence * 100)}%`),
+            el("td", { class: "wrap" }, f.reason)))))),
+        el("h2", { style: "margin: 16px 0 8px" }, "Your first rows, as Shopify would get them"),
+        el("div", { class: "scroll" }, el("table", { class: "ref" },
+          el("thead", {}, el("tr", {}, fields.map((h) => el("th", { scope: "col" }, h)))),
+          el("tbody", {}, report.preview.map((r) => el("tr", {},
+            fields.map((f) => el("td", {}, r.excluded ? "(skipped)" : String(r.shopify[f] ?? "")))))))),
       );
     } catch (error) {
-      $("csv-status").replaceChildren(el("span", { style: "color: var(--bad)" }, error.message));
+      $("csv-status").replaceChildren(el("span", { class: "pill bad" }, error.message));
     } finally {
       $("csv").value = "";
     }
@@ -444,7 +576,7 @@
   $("drop").addEventListener("dragover", (event) => event.preventDefault());
   $("drop").addEventListener("drop", (event) => { event.preventDefault(); upload(event.dataTransfer.files[0]); });
 
-  load().catch((error) => $("grid").replaceChildren(el("p", { style: "color: var(--bad)" }, error.message)));
+  load().catch((error) => $("rows").replaceChildren(el("tr", {}, el("td", { colSpan: 7, class: "empty", style: "color: var(--bad)" }, error.message))));
 </script>
 </body>
 </html>

@@ -147,6 +147,7 @@ def demo_router(settings: Settings) -> APIRouter:
                     "status": product.get("status"),
                     "category": product.get("product_type"),
                     "image": product.get("image"),
+                    "reorder_level": product.get("reorder_level"),
                     "excluded": is_excluded(mapping, row),
                     "handle": handle_for(sku) if sku else None,
                     "shopify": synced.get(sku),
