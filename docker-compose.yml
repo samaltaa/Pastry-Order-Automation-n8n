@@ -80,16 +80,6 @@ services:
     volumes:
       - n8n_data:/home/node/.n8n
 
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: pastry-cloudflared
-    restart: unless-stopped
-    depends_on:
-      - n8n
-    # Quick tunnel: free random *.trycloudflare.com URL that changes on restart.
-    # With a domain, switch to a named tunnel: command: tunnel run --token <token>
-    command: tunnel --no-autoupdate --url http://n8n:5678
-
 volumes:
   postgres_data:
   n8n_data:

@@ -4,6 +4,7 @@ all call these methods, so the rules (budget, approval checks, locking) can't dr
 import logging
 import time
 from collections.abc import Callable
+from decimal import Decimal
 
 import anthropic
 from psycopg import sql
@@ -52,6 +53,7 @@ log = logging.getLogger(__name__)
 
 Mapper = Callable[[dict], tuple[mappings.Mapping, dict]]
 Post = Callable[[str, dict], None]
+Reviewer = Callable[[list[dict]], tuple[list[dict], dict]]
 
 
 class Problem(Exception):
@@ -65,12 +67,19 @@ class Problem(Exception):
 
 class Service:
     def __init__(
-        self, settings: Settings, pool: ConnectionPool, shopify: ShopifyClient, mapper: Mapper, post: Post
+        self,
+        settings: Settings,
+        pool: ConnectionPool,
+        shopify: ShopifyClient,
+        mapper: Mapper,
+        post: Post,
+        reviewer: Reviewer | None = None,
     ):
         self.settings = settings
         self.pool = pool
         self.shopify = shopify
         self.mapper = mapper
+        self.reviewer = reviewer
         self.post = post  # JSON POST to another service (Telegram, Make); tests pass a recorder
         self.source = full_name(settings.sync_source)
         self.on_sheet = qualify(self.source)[0] == "sheets"
@@ -209,6 +218,7 @@ class Service:
                         dry_run,
                         trigger,
                         self.settings.shopify_location_id,
+                        self.review_changes,
                     )
                 except NoApprovedMapping as error:
                     raise Problem(409, str(error)) from error
@@ -221,14 +231,78 @@ class Service:
             return report
         raise Problem(409, str(busy))
 
+    def review_changes(self, changes: list[dict]) -> list[dict]:
+        """Claude's flags on these changes. Over budget or failed, there are none: a sync never
+        waits on Claude, and the rules in app/guard.py still apply."""
+        if not self.reviewer:
+            return []
+        with self.pool.connection() as conn:
+            if spent_today(conn) >= self.settings.daily_llm_budget_usd:
+                log.warning("Daily AI budget reached: changes weren't reviewed")
+                return []
+        try:
+            flags, call = self.reviewer(changes)
+        except Exception as error:
+            log.warning("Reviewing changes failed: %s", type(error).__name__)
+            with self.pool.connection() as conn:
+                failed = getattr(error, "call", {}) or {"model": self.settings.anthropic_model_fast}
+                log_call(
+                    conn, "changes", {**failed, "outcome": "error", "error": str(error)[:500]}, "sync/review"
+                )
+            return []
+        with self.pool.connection() as conn:
+            log_call(conn, "changes", {**call, "outcome": "ok"}, "sync/review")
+        return flags
+
+    def review_stock_move(self, sku: str, old: int, new: int) -> None:
+        """A sale has already happened, so it can't be held. If Claude finds it unusual, it's listed
+        for approval, and declining puts the stock back."""
+        with self.pool.connection() as conn:
+            try:
+                _, mapping = approved_mapping(conn, self.source)
+            except NoApprovedMapping:
+                return
+            products = (mappings.apply(mapping, row) for row in read_rows(conn, self.source))
+            product = next((product for product in products if product.get("sku") == sku), {})
+        change = {
+            "sku": sku,
+            "product": product.get("title"),
+            "category": product.get("product_type"),
+            "field": "quantity",
+            "old": str(old),
+            "new": str(new),
+            "from": "Shopify: an online sale or an admin edit",
+        }
+        flags = self.review_changes([change])
+        if not flags:
+            return
+        with self.pool.connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO sync.held_changes
+                  (sku, field, old_value, new_value, reason, flagged_by, applied)
+                VALUES (%s, 'quantity', %s, %s, %s, 'claude', TRUE)
+                ON CONFLICT (sku, field) DO UPDATE SET new_value = EXCLUDED.new_value,
+                  old_value = CASE WHEN sync.held_changes.applied THEN sync.held_changes.old_value
+                                   ELSE EXCLUDED.old_value END,
+                  reason = EXCLUDED.reason, flagged_by = 'claude', applied = TRUE, released = FALSE,
+                  held_at = NOW()
+                """,
+                (sku, str(old), str(new), flags[0]["reason"]),
+            )
+        self.notify_owner(
+            f"Unusual stock change for {product.get('title') or sku} ({sku}): {old} -> {new}. "
+            f"{flags[0]['reason']} Approve or decline it on the demo page."
+        )
+
     def held_changes(self) -> list[dict]:
-        """Changes held because they looked like typos, newest first, with the product's title."""
+        """Changes waiting for a decision, newest first."""
         with self.pool.connection() as conn:
             return (
                 conn.cursor(row_factory=dict_row)
                 .execute(
                     """
-                    SELECT sku, field, old_value, new_value, reason, released,
+                    SELECT sku, field, old_value, new_value, reason, released, flagged_by, applied,
                            to_char(held_at AT TIME ZONE %s, 'Mon DD HH24:MI') AS held_local
                     FROM sync.held_changes ORDER BY held_at DESC
                     """,
@@ -237,17 +311,19 @@ class Service:
                 .fetchall()
             )
 
-    def release(self, sku: str) -> dict:
-        """The owner says a held change was intended: it's applied by a sync straight away."""
+    def release(self, sku: str, field: str | None = None) -> dict:
+        """A flagged change was intended: it's applied by a sync straight away, or, if it already
+        happened, simply kept. Without a field, everything flagged for the product is released."""
         with self.pool.connection() as conn:
             fields = [
                 row[0]
                 for row in conn.execute(
                     "UPDATE sync.held_changes SET released = TRUE WHERE upper(sku) = upper(%s)"
-                    " RETURNING field",
-                    (sku.strip(),),
+                    " AND (%s::text IS NULL OR field = %s) RETURNING field",
+                    (sku.strip(), field, field),
                 )
             ]
+            conn.execute("DELETE FROM sync.held_changes WHERE released AND applied")
         if not fields:
             raise Problem(404, f"Nothing is held for {sku}")
         return {
@@ -255,6 +331,49 @@ class Service:
             "released": fields,
             "sync": self.sync(None, False, "manual", wait=True),
         }
+
+    def decline(self, sku: str, field: str) -> dict:
+        """A flagged change was a mistake: the source goes back to the old value, the sheet too, and
+        the sync takes Shopify back if the change had reached it."""
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                "SELECT old_value FROM sync.held_changes WHERE sku = %s AND field = %s AND NOT released",
+                (sku, field),
+            ).fetchone()
+            if not row:
+                raise Problem(404, f"Nothing is held for {sku}")
+            if row[0] is None:
+                raise Problem(409, "This is a new product with no old value: correct it in the source.")
+            key = conn.execute("SELECT source_key FROM sync.items WHERE sku = %s", (sku,)).fetchone()
+            if not key:
+                raise Problem(409, "This product isn't in Shopify yet: correct it in the source.")
+            value = f"${Decimal(row[0]):.2f}" if field == "price" and self.on_sheet else row[0]
+            _, mapping = approved_mapping(conn, self.source)
+            cells = self.set_cell(conn, mapping, key[0], field, value)
+            # Released at its old value, so neither the rules nor Claude stop it going back
+            conn.execute(
+                "UPDATE sync.held_changes SET new_value = old_value, released = TRUE, applied = FALSE"
+                " WHERE sku = %s AND field = %s",
+                (sku, field),
+            )
+        if cells and self.on_sheet and self.settings.make_sheet_webhook_url:
+            self.write_to_sheet(key[0], cells)
+        return {"sku": sku, "declined": field, "sync": self.sync(None, False, "demo", wait=True)}
+
+    def set_cell(self, conn, mapping: mappings.Mapping, key: str, target: str, value: str) -> dict | None:
+        """Writes one value to a source row. Returns the row's price and stock cells."""
+        columns = {field.target: field.source_column for field in mapping.fields}
+        row = conn.execute(
+            sql.SQL("UPDATE {} SET {} = %s WHERE trim({}) = %s RETURNING {}, {}").format(
+                sql.Identifier(*qualify(self.source)),
+                sql.Identifier(columns[target]),
+                sql.Identifier(mapping.key_column),
+                sql.Identifier(columns["price"]),
+                sql.Identifier(columns["quantity"]),
+            ),
+            (value, key),
+        ).fetchone()
+        return {"price": row[0], "quantity": row[1]} if row else None
 
     def alert_held(self, changes: list[dict]) -> None:
         new = [change for change in changes if change["action"] == "held" and change.get("new")]
@@ -423,8 +542,8 @@ class Service:
 
         The source takes Shopify's number, and so does sync.items, so the next sync neither reports
         a conflict nor puts the old count back. Shopify also sends this after the sync's own stock
-        writes; those already match sync.items and are ignored. Returns the row to write back to a
-        sheet source, or None.
+        writes; those already match sync.items and are ignored. Returns what moved, with the row
+        to write back to a sheet source under "write", or None if nothing did.
         """
         with self.pool.connection() as conn:
             item = conn.execute(
@@ -433,28 +552,23 @@ class Service:
             ).fetchone()
             if not item or item[2] == available:
                 return None
-            sku, source_key, _ = item
+            sku, source_key, old = item
             try:
                 _, mapping = approved_mapping(conn, self.source)
             except NoApprovedMapping:
                 return None
-            columns = {field.target: field.source_column for field in mapping.fields}
-            if "quantity" not in columns:
+            if "quantity" not in {field.target for field in mapping.fields}:
                 return None
-            row = conn.execute(
-                sql.SQL("UPDATE {} SET {} = %s WHERE trim({}) = %s RETURNING {}").format(
-                    sql.Identifier(*qualify(self.source)),
-                    sql.Identifier(columns["quantity"]),
-                    sql.Identifier(mapping.key_column),
-                    sql.Identifier(columns["price"]),
-                ),
-                (str(available), source_key),
-            ).fetchone()
+            cells = self.set_cell(conn, mapping, source_key, "quantity", str(available))
             conn.execute("UPDATE sync.items SET last_quantity = %s WHERE sku = %s", (available, sku))
         log.info("Shopify stock for %s is now %s; source updated", sku, available)
-        if row is None or not (self.on_sheet and self.settings.make_sheet_webhook_url):
-            return None
-        return {"key": source_key, "cells": {"price": row[0], "quantity": str(available)}}
+        writable = cells and self.on_sheet and self.settings.make_sheet_webhook_url
+        return {
+            "sku": sku,
+            "old": old,
+            "new": available,
+            "write": {"key": source_key, "cells": cells} if writable else None,
+        }
 
     def register_stock_webhook(self, url: str) -> dict:
         """Points Shopify's stock-change webhook at this service. Run again whenever the address changes."""

@@ -17,6 +17,7 @@ For each row:
 import hashlib
 import json
 import re
+from collections.abc import Callable
 
 from psycopg import Connection
 from psycopg.rows import dict_row
@@ -25,6 +26,8 @@ from app import guard
 from app.mapping import LOCAL_TARGETS, REQUIRED_TARGETS, Mapping, apply, is_excluded, problems
 from app.shopify import ShopifyClient, ShopifyError
 from app.sources import column_names, full_name, read_rows
+
+Reviewer = Callable[[list[dict]], list[dict]]
 
 LOCK_ID = 7_270_002
 COUNTS = "created updated stock_updated published unchanged excluded failed conflicts removed held".split()
@@ -278,7 +281,13 @@ def save_item(
 
 
 def run_sync(
-    conn: Connection, shopify: ShopifyClient, table: str, dry_run: bool, trigger: str, location_id=None
+    conn: Connection,
+    shopify: ShopifyClient,
+    table: str,
+    dry_run: bool,
+    trigger: str,
+    location_id=None,
+    reviewer: Reviewer | None = None,
 ) -> dict:
     """One sync run. The connection is held for the whole run so the advisory lock stops overlaps."""
     if not conn.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_ID,)).fetchone()[0]:
@@ -297,7 +306,8 @@ def run_sync(
         ).fetchone()[0]
         conn.commit()
         try:
-            report = sync_rows(conn, Sync(conn, shopify, location_id), mapping, table, dry_run, run_id)
+            sync = Sync(conn, shopify, location_id)
+            report = sync_rows(conn, sync, mapping, table, dry_run, run_id, reviewer)
         except Exception as error:
             conn.rollback()
             conn.execute(
@@ -323,7 +333,68 @@ def run_sync(
         conn.commit()
 
 
-def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_run: bool, run_id: int) -> dict:
+def claude_holds(
+    conn: Connection,
+    mapping: Mapping,
+    rows: list[dict],
+    known: dict,
+    released: dict[str, dict[str, str]],
+    reviewer: Reviewer | None,
+) -> dict[str, list[dict]]:
+    """Claude's holds per SKU. A change it already flagged stays held without asking again, and one
+    call covers every new change. The rules (app/guard.py) go first: what they hold isn't sent."""
+    flagged = {
+        (row[0], row[1]): {"new": row[2], "reason": row[3]}
+        for row in conn.execute(
+            "SELECT sku, field, new_value, reason FROM sync.held_changes"
+            " WHERE flagged_by = 'claude' AND NOT released AND NOT applied"
+        )
+    }
+    holds: dict[str, list[dict]] = {}
+    pending: dict[tuple[str, str], dict] = {}
+    ask = []
+    for row in rows:
+        product = apply(mapping, row)
+        sku = product.get("sku")
+        if not sku or is_excluded(mapping, row):
+            continue
+        item = known.get(sku)
+        ruled = {hold["field"] for hold in guard.check(product, item, released.get(sku, {}))}
+        for change in guard.changes(product, item):
+            field = change["field"]
+            if field in ruled or released.get(sku, {}).get(field) == change["new"]:
+                continue
+            earlier = flagged.get((sku, field))
+            if earlier and earlier["new"] == change["new"]:
+                holds.setdefault(sku, []).append({**change, "reason": earlier["reason"], "by": "claude"})
+                continue
+            pending[(sku, field)] = change
+            ask.append(
+                {
+                    "sku": sku,
+                    "product": product.get("title"),
+                    "category": product.get("product_type"),
+                    **change,
+                    "from": "a person editing the inventory",
+                }
+            )
+    if ask and reviewer:
+        for flag in reviewer(ask):
+            change = pending.get((flag["sku"], flag["field"]))
+            if change:
+                holds.setdefault(flag["sku"], []).append({**change, "reason": flag["reason"], "by": "claude"})
+    return holds
+
+
+def sync_rows(
+    conn: Connection,
+    sync: Sync,
+    mapping: Mapping,
+    table: str,
+    dry_run: bool,
+    run_id: int,
+    reviewer: Reviewer | None = None,
+) -> dict:
     counts = dict.fromkeys(COUNTS, 0)
     changes: list[dict] = []
     known = {row["sku"]: row for row in conn.cursor(row_factory=dict_row).execute("SELECT * FROM sync.items")}
@@ -333,8 +404,10 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
     ):
         released.setdefault(sku, {})[field] = value
     seen: set[str] = set()
+    rows = read_rows(conn, table)
+    flagged = {} if dry_run else claude_holds(conn, mapping, rows, known, released, reviewer)
 
-    for row in read_rows(conn, table):
+    for row in rows:
         if is_excluded(mapping, row):
             counts["excluded"] += 1
             continue
@@ -357,7 +430,7 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
         # A held price keeps the whole product as it was; a held stock count keeps the old stock
         holds = [
             hold
-            for hold in guard.check(product, item, released.get(sku, {}))
+            for hold in [*guard.check(product, item, released.get(sku, {})), *flagged.get(sku, [])]
             if (hold["field"] == "price" and data_changed) or (hold["field"] == "quantity" and stock_changed)
         ]
         held_fields = {hold["field"] for hold in holds}
@@ -451,7 +524,9 @@ def record_holds(conn: Connection, sku: str, holds: list[dict]) -> set[str]:
     value was fixed (or released and now applied) are cleared. Returns the fields held for the first time."""
     current = {
         row[0]: row[1]
-        for row in conn.execute("SELECT field, new_value FROM sync.held_changes WHERE sku = %s", (sku,))
+        for row in conn.execute(
+            "SELECT field, new_value FROM sync.held_changes WHERE sku = %s AND NOT applied", (sku,)
+        )
     }
     held = {hold["field"] for hold in holds}
     for field in set(current) - held:
@@ -463,12 +538,13 @@ def record_holds(conn: Connection, sku: str, holds: list[dict]) -> set[str]:
         fresh.add(hold["field"])
         conn.execute(
             """
-            INSERT INTO sync.held_changes (sku, field, old_value, new_value, reason)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO sync.held_changes (sku, field, old_value, new_value, reason, flagged_by)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT (sku, field) DO UPDATE SET old_value = EXCLUDED.old_value,
-              new_value = EXCLUDED.new_value, reason = EXCLUDED.reason, released = FALSE, held_at = NOW()
+              new_value = EXCLUDED.new_value, reason = EXCLUDED.reason, flagged_by = EXCLUDED.flagged_by,
+              released = FALSE, applied = FALSE, held_at = NOW()
             """,
-            (sku, hold["field"], hold["old"], hold["new"], hold["reason"]),
+            (sku, hold["field"], hold["old"], hold["new"], hold["reason"], hold.get("by", "rule")),
         )
     conn.commit()
     return fresh

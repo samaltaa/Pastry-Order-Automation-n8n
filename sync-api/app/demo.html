@@ -97,7 +97,9 @@
   .checks { list-style: none; margin: 0; padding: 0 0 6px; }
   .checks li { display: grid; grid-template-columns: 76px 190px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 6px 16px; }
   .checks .detail { color: var(--muted); font-size: 13px; }
-  @media (max-width: 720px) { .checks li { grid-template-columns: 76px minmax(0, 1fr); } .checks .detail { grid-column: 2; } }
+  .checks li.decide { grid-template-columns: 76px 190px minmax(0, 1fr) auto; }
+  .choices { display: flex; gap: 8px; }
+  @media (max-width: 720px) { .checks li, .checks li.decide { grid-template-columns: 76px minmax(0, 1fr); } .checks .detail, .checks li.decide .choices { grid-column: 2; } }
   .result { margin-bottom: 16px; }
   .result.good { border-left: 3px solid var(--good); }
   .result.bad { border-left: 3px solid var(--bad); }
@@ -218,8 +220,8 @@
 
   <div class="panel paused" id="held" hidden aria-live="polite">
     <div class="panel-head">
-      <h2 id="held-title">Held for review</h2>
-      <span class="small">These changes looked like typos, so the store kept its old value. The owner can apply one with /release.</span>
+      <h2 id="held-title">Needs approval</h2>
+      <span class="small">These changes looked out of the ordinary. Approve applies one; Decline puts the old value back everywhere.</span>
     </div>
     <ul class="checks" id="held-list"></ul>
   </div>
@@ -350,7 +352,7 @@
 
   const paused = () => Boolean(state.waiting);
 
-  const heldFor = (p) => state.held.filter((h) => h.sku === p.sku);
+  const heldFor = (p) => state.held.filter((h) => h.sku === p.sku && !h.applied);
   const shown = (field, value) => value == null ? "–" : field === "price" ? money(value) : value;
 
   function status(p) {
@@ -486,13 +488,23 @@
 
   function renderHeld() {
     $("held").hidden = state.held.length === 0;
-    $("held-title").textContent = `Held for review (${state.held.length})`;
+    $("held-title").textContent = `Needs approval (${state.held.length})`;
     $("held-list").replaceChildren(...state.held.map((h) => {
       const product = state.products.find((p) => p.sku === h.sku);
-      return el("li", {},
-        el("span", { class: "pill warn" }, h.field === "price" ? "Price" : "Stock"),
-        el("b", {}, product?.title ?? h.sku),
-        el("span", { class: "detail num" }, `${shown(h.field, h.old_value)} → ${shown(h.field, h.new_value)} · ${h.reason} · store keeps ${shown(h.field, h.old_value)}`));
+      const name = product?.title ?? h.sku;
+      const label = h.field === "price" ? "price" : "stock";
+      const change = `${shown(h.field, h.old_value)} → ${shown(h.field, h.new_value)}`;
+      const body = { sku: h.sku, field: h.field };
+      return el("li", { class: "decide" },
+        el("span", { class: "pill warn" }, h.applied ? "Sale" : h.field === "price" ? "Price" : "Stock"),
+        el("b", {}, name),
+        el("span", { class: "detail num" }, `${change} · ${h.flagged_by === "claude" ? "Claude: " : ""}${h.reason} · `
+          + (h.applied ? "already happened" : `store keeps ${shown(h.field, h.old_value)}`)),
+        el("span", { class: "choices" },
+          el("button", { type: "button", class: "primary", ariaLabel: `Approve ${name} ${label} change`,
+            onclick: (event) => decide(event.target, "/demo/api/release", body, `Approved ${name}: ${label} ${shown(h.field, h.new_value)}`) }, "Approve"),
+          h.old_value == null ? null : el("button", { type: "button", ariaLabel: `Decline ${name} ${label} change`,
+            onclick: (event) => decide(event.target, "/demo/api/decline", body, `Declined ${name}: ${label} back to ${shown(h.field, h.old_value)}`) }, "Decline")));
     }));
   }
 
@@ -584,6 +596,20 @@
       el("div", { class: "panel-head" }, el("h2", {}, title),
         el("button", { type: "button", class: "quiet", ariaLabel: "Dismiss", onclick: () => $("result").replaceChildren() }, "Dismiss")),
       ...body));
+  }
+
+  async function decide(button, path, body, title) {
+    button.disabled = true;
+    try {
+      const { sync } = await api(path, { method: "POST", body: body && JSON.stringify(body) });
+      await load();
+      showResult(sync.counts.failed ? "warn" : "good", title,
+        sync.changes.length ? el("ul", {}, sync.changes.map((c) => describe(c, new Map()))) : null);
+    } catch (error) {
+      button.disabled = false;
+      showResult("bad", "Not applied", el("div", { class: "note bad" }, error.message));
+    }
+    $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   $("sync").addEventListener("click", async () => {

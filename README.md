@@ -113,7 +113,7 @@ There are two n8n workflows, both exported to [`n8n/workflows/`](n8n/workflows):
 | <img src="https://cdn.simpleicons.org/caddy" width="22"> | **Caddy** | Production reverse proxy with automatic HTTPS. The only service with public ports. |
 | <img src="https://cdn.simpleicons.org/uptimekuma" width="22"> | **Uptime Kuma** | Checks the API, n8n and the nightly backup, and sends Telegram alerts. |
 | <img src="https://cdn.simpleicons.org/githubactions" width="22"> | **GitHub Actions** | Runs type-checking, tests and evals, then deploys to the VPS over SSH. |
-| <img src="https://cdn.simpleicons.org/cloudflare" width="22"> | **Cloudflare Tunnel** | Local development only: a public HTTPS URL for Telegram's webhook without a server. |
+| <img src="https://cdn.simpleicons.org/tailscale" width="22"> | **Tailscale Funnel** | Running without a server: a permanent public HTTPS address for the demo, Telegram, Make and Shopify's webhook. |
 
 ## 5. How do you stop the AI from making things up?
 
@@ -210,12 +210,12 @@ The server setup is written step by step in [`docs/runbook.md`](docs/runbook.md)
 
 ```bash
 cp .env.example .env          # fill in the placeholders
-docker compose up -d          # postgres, ops-api, n8n, cloudflared
+docker compose up -d          # postgres, ops-api, sync-api, n8n
 ```
 
 The API applies database migrations and the starter menu on startup.
 
-Then open n8n at `http://localhost:5678`, import both files from [`n8n/workflows/`](n8n/workflows) (**Workflows → Import from file**), add the Telegram credential, activate both workflows, and register your tunnel URL as the bot's webhook. The [operator manual](instructions_docs.html) walks through each step, including importing from the command line.
+Then open n8n at `http://localhost:5678`, import both files from [`n8n/workflows/`](n8n/workflows) (**Workflows → Import from file**), add the Telegram credential, activate both workflows, and register your public URL as the bot's webhook ([runbook](docs/runbook.md#running-on-a-laptop)). The [operator manual](instructions_docs.html) walks through each step, including importing from the command line.
 
 **Run the tests and evals:**
 

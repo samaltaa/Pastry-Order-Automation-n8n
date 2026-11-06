@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app import commands
 from app.config import Settings
 from app.demo import demo_router
-from app.llm import propose_mapping, propose_routed
+from app.llm import propose_mapping, propose_routed, review_changes
 from app.service import Mapper, Post, Problem, Service
 from app.shopify import ShopifyClient
 from app.sources import MAX_SHEET_ROWS
@@ -100,6 +100,7 @@ def create_app(
             settings.shopify_api_version,
         )
         claude = None if mapper else anthropic.Anthropic(timeout=120, max_retries=2)
+        reviewing = claude and claude.with_options(timeout=20, max_retries=1)  # a sync waits on this
         http = httpx.Client(timeout=15) if post is None else None
 
         def post_json(url: str, body: dict) -> None:
@@ -111,6 +112,7 @@ def create_app(
             shopify_client,
             mapper or (lambda table: map_table(claude, settings, table)),
             post_json if post is None else post,
+            claude and (lambda changes: review_changes(reviewing, settings.anthropic_model_fast, changes)),
         )
         if settings.shopify_webhook_url:
             try:
@@ -125,7 +127,8 @@ def create_app(
         shopify_client.close()
         pool.close()
 
-    app = FastAPI(title="Pastry Ops sync", lifespan=lifespan)
+    # No generated docs: on a laptop deployment every route is public, with no Caddy in front
+    app = FastAPI(title="Pastry Ops sync", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.exception_handler(Problem)
     def problem_response(request: Request, problem: Problem):
@@ -205,9 +208,11 @@ def create_app(
         if payload.get("available") is None:
             return {"ok": True, "handled": False}
         item = f"gid://shopify/InventoryItem/{payload['inventory_item_id']}"
-        write = svc.shopify_stock_changed(item, int(payload["available"]))
-        if write:
-            background.add_task(write_back, svc, write["key"], write["cells"])
+        moved = svc.shopify_stock_changed(item, int(payload["available"]))
+        if moved and moved["write"]:
+            background.add_task(write_back, svc, moved["write"]["key"], moved["write"]["cells"])
+        if moved:
+            background.add_task(svc.review_stock_move, moved["sku"], moved["old"], moved["new"])
         background.add_task(svc.alert_low_stock)  # a sale may have taken it to its reorder level
         return {"ok": True, "handled": True}
 

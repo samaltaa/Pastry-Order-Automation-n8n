@@ -2,7 +2,9 @@
 
 Only mounted when DEMO_ENABLED=true. There's no API key here, so every action is rate-limited
 per visitor, edits are limited to the price and stock of existing products, and CSV uploads
-are previewed only: nothing from them is stored or sent to Shopify.
+are previewed only: nothing from them is stored or sent to Shopify. Unusual changes are approved or
+declined here, so a reviewer never needs Telegram. The sheet's header row is protected, so reviewers
+can't cause a paused mapping; that decision stays with the owner.
 
 The inventory is the active source: the POS table, or the Google Sheet. When it's the sheet,
 edits are also sent to Make, which writes them into the sheet, so the sheet never disagrees
@@ -16,6 +18,7 @@ import time
 from collections import defaultdict, deque
 from itertools import islice
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -62,6 +65,11 @@ class SyncNow(BaseModel):
     """Edits made on the page, saved to the inventory in one go just before the sync runs."""
 
     edits: list[ProductEdit] = Field(default_factory=list, max_length=50)
+
+
+class Decision(BaseModel):
+    sku: str = Field(max_length=40)
+    field: Literal["price", "quantity"]
 
 
 class CsvUpload(BaseModel):
@@ -232,6 +240,18 @@ def demo_router(settings: Settings) -> APIRouter:
         saved = save_edits(body.edits, request) if body and body.edits else {}
         report = service(request).sync(source, dry_run=False, trigger="demo")
         return {**report, "sheet": write_to_sheet(saved, request)}
+
+    @router.post("/api/release")
+    def release(body: Decision, request: Request):
+        """A flagged change was intended: the store takes it now, or keeps it if it already happened."""
+        slow_down(request, "decide", 6, 60)
+        return service(request).release(body.sku, body.field)
+
+    @router.post("/api/decline")
+    def decline(body: Decision, request: Request):
+        """A flagged change was a mistake: everything goes back to the old value."""
+        slow_down(request, "decide", 6, 60)
+        return service(request).decline(body.sku, body.field)
 
     @router.post("/api/csv")
     def csv_preview(upload: CsvUpload, request: Request):

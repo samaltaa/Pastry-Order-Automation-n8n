@@ -2,7 +2,8 @@
 
 A typo in a spreadsheet ($4.50 typed as $450, 15 typed as 1500) is the most likely way this system
 could hurt a shop, so changes that look like one are held: the store keeps its old value, the change
-is listed on the demo page and sent to the owner, and /release applies it if it was intended.
+is listed on the demo page and sent to the owner, to approve or decline. These rules catch the
+extreme cases even when Claude is unavailable; Claude reviews whatever gets past them (app/llm.py).
 Ordinary edits, and stock going down (sales), pass straight through.
 """
 
@@ -37,6 +38,28 @@ def check(product: dict, item: dict | None, released: dict[str, str]) -> list[di
                 _hold("quantity", old_quantity, quantity, f"+{quantity - old_quantity} units at once")
             )
     return holds
+
+
+def changes(product: dict, item: dict | None) -> list[dict]:
+    """The price and stock this product would change, as {"field", "old", "new"}."""
+    found = []
+    price = _decimal(product.get("price"))
+    old_price = _decimal(item.get("last_price")) if item else None
+    if price is not None and (item is None or (old_price is not None and price != old_price)):
+        found.append(
+            {"field": "price", "old": None if old_price is None else str(old_price), "new": str(price)}
+        )
+    quantity = product.get("quantity")
+    old_quantity = item.get("last_quantity") if item else None
+    if quantity is not None and quantity != old_quantity:
+        found.append(
+            {
+                "field": "quantity",
+                "old": None if old_quantity is None else str(old_quantity),
+                "new": str(quantity),
+            }
+        )
+    return found
 
 
 def _hold(field: str, old, new, reason: str) -> dict:

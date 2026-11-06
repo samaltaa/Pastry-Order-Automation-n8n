@@ -166,7 +166,7 @@ Send these to the bot from your own Telegram account (only `OWNER_TELEGRAM_CHAT_
 2. `/approve <id>`
 3. `/sync`: the first run creates every product in Shopify (about 30 seconds).
 
-After that, the n8n schedule syncs every 15 minutes and messages you only when something fails or a stock conflict is found. `/runs` lists recent runs. A price or stock change that looks like a typo is held instead of synced; `/held` lists them and `/release <sku>` applies one.
+After that, the n8n schedule syncs every 15 minutes and messages you only when something fails or a stock conflict is found. `/runs` lists recent runs. Every price and stock change is checked before it reaches Shopify: fixed rules catch extreme values, and Claude (Haiku) reviews the rest. A flagged change is held, and online sales are reviewed after they happen. Approve or decline on the demo page. In Telegram, `/held` lists them and `/release <sku>` approves one.
 
 *Check:* `https://sync.<your-domain>` opens the demo page. Change a price there, click **Sync to Shopify**, and the storefront shows the new price.
 
@@ -189,6 +189,49 @@ To sync from the inventory sheet instead of the POS table:
 - [ ] Stopping ops-api sent an alert (step 6).
 - [ ] A push to `main` deployed on its own (step 8).
 - [ ] `/sync` from Telegram answers, and the demo page shows every product as "in Shopify" (step 9).
+
+## Running on a laptop
+
+The free alternative to a VPS, using `docker-compose.yml`. Tailscale Funnel gives the laptop a permanent public address, so nothing has to be re-registered after a restart. The site is only up while the laptop is on.
+
+Funnel only opens ports 443, 8443 and 10000, and Telegram only accepts 443, 80, 88 and 8443, so one address on 8443 serves everything. Only n8n's `/webhook` path is public, not its editor.
+
+```bash
+tailscale funnel --bg --https=8443 --set-path=/ http://127.0.0.1:3003
+tailscale funnel --bg --https=8443 --set-path=/webhook http://127.0.0.1:5678/webhook
+```
+
+In `.env`, with `<public-url>` as `https://<machine>.<tailnet>.ts.net:8443`:
+
+```
+WEBHOOK_URL=<public-url>/
+SHOPIFY_WEBHOOK_URL=<public-url>/webhooks/shopify
+```
+
+Then:
+
+```bash
+docker compose up -d --force-recreate n8n sync-api   # sync-api registers the Shopify webhook on startup
+set -a; . ./.env; set +a
+curl -fsS "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  --data-urlencode "url=<public-url>/webhook/order-intake" \
+  --data-urlencode "secret_token=$TELEGRAM_WEBHOOK_SECRET" \
+  --data-urlencode 'allowed_updates=["message"]'
+```
+
+In Make, point the sheet scenario's HTTP module at `<public-url>/sources/sheets/inventory`.
+
+Keep the laptop awake with the lid closed:
+
+```bash
+sudo systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+sudo sed -i 's/^#\?HandleLidSwitch=.*/HandleLidSwitch=ignore/; s/^#\?HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=ignore/' /etc/systemd/logind.conf
+sudo systemctl restart systemd-logind
+```
+
+Docker, Tailscale and the Funnel settings all come back after a reboot.
+
+*Check:* `<public-url>/demo` loads from a phone on mobile data, `/menu` gets a reply from the bot, and a sheet edit shows up as a `sheet` run in `/runs`. If sheet edits stop arriving, check first that both Make scenarios are still active.
 
 ## Day to day
 

@@ -120,3 +120,35 @@ def test_the_webhook_is_registered_at_startup(db, make_client, store):
     with make_client(shopify_webhook_url="https://sync.test/webhooks/shopify"):
         pass
     assert [hook["uri"] for hook in store.webhooks.values()] == ["https://sync.test/webhooks/shopify"]
+
+
+def flag_sales(changes):
+    return [{"sku": c["sku"], "field": "quantity", "reason": "A very large order"} for c in changes], {
+        "model": "claude-haiku-5-5"
+    }
+
+
+def test_an_unusual_sale_waits_for_a_decision_and_declining_restocks(synced, store, sheets):
+    synced.app.state.service.reviewer = flag_sales
+    store.stock[f"gid://shopify/InventoryItem/{store.by_sku('CAT-1')['item']}"] = 1  # five of six sold
+    assert deliver(synced, stock_event(store, "CAT-1", 1)).status_code == 200
+    [held] = synced.get("/demo/api/state").json()["held"]
+    assert (held["applied"], held["old_value"], held["new_value"]) == (True, "6", "1")
+
+    edited = [row[:] for row in SHEET]
+    edited[1][3] = "1"  # Make wrote the sale into the sheet
+    send(synced, edited)  # a sync doesn't clear the decision
+    assert len(synced.get("/demo/api/state").json()["held"]) == 1
+
+    assert synced.post("/demo/api/decline", json={"sku": "CAT-1", "field": "quantity"}).status_code == 200
+    assert store.writes[-1].endswith("=6")
+    assert synced.get("/demo/api/state").json()["held"] == []
+
+
+def test_approving_an_unusual_sale_keeps_it(synced, store):
+    synced.app.state.service.reviewer = flag_sales
+    store.stock[store.by_sku("CAT-1")["item"]] = 1
+    deliver(synced, stock_event(store, "CAT-1", 1))
+    assert synced.post("/demo/api/release", json={"sku": "CAT-1", "field": "quantity"}).status_code == 200
+    assert store.stock[store.by_sku("CAT-1")["item"]] == 1
+    assert synced.get("/demo/api/state").json()["held"] == []
