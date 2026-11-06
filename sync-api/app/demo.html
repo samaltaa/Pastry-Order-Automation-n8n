@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bakery POS to Shopify</title>
+<style>
+  :root {
+    --bg: #fbf7f2; --card: #ffffff; --ink: #2a211b; --muted: #75685d; --line: #ece3d9;
+    --accent: #b4532a; --accent-ink: #ffffff; --accent-soft: #f7e6dc;
+    --good: #2f7d4f; --good-soft: #e3f2e8; --warn: #a15c07; --warn-soft: #fbefd9; --bad: #b42318; --bad-soft: #fde8e6;
+    --shadow: 0 1px 2px rgb(42 33 27 / 6%), 0 4px 16px rgb(42 33 27 / 6%);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17130f; --card: #221c17; --ink: #f2ebe3; --muted: #b3a597; --line: #3a3029;
+      --accent: #e8875a; --accent-ink: #1b0f08; --accent-soft: #3d2618;
+      --good: #6fcf97; --good-soft: #1d3326; --warn: #f2b45a; --warn-soft: #3a2a12; --bad: #f97066; --bad-soft: #3d1916;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 32px 16px 120px; }
+  h1 { font-size: clamp(24px, 4vw, 32px); line-height: 1.2; margin: 0 0 8px; }
+  h2 { font-size: 20px; margin: 0 0 4px; }
+  p { margin: 0 0 12px; }
+  a { color: var(--accent); }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .lead { color: var(--muted); max-width: 68ch; font-size: 16px; }
+  button, .button { font: inherit; font-weight: 600; border-radius: 10px; padding: 9px 16px; cursor: pointer;
+                    border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none;
+                    display: inline-flex; align-items: center; gap: 6px; }
+  .primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button:disabled { opacity: .6; cursor: progress; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  .hero { display: grid; gap: 20px; grid-template-columns: 1.4fr 1fr; align-items: start; }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr; } }
+  .store-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+  .store-card code { background: var(--accent-soft); padding: 2px 8px; border-radius: 6px; font-size: 14px; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 24px 0; padding: 0; list-style: none; }
+  .steps li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .steps b { display: block; }
+  .steps span { color: var(--muted); font-size: 14px; }
+
+  .result { border-radius: 12px; padding: 14px 16px; margin: 0 0 20px; border: 1px solid var(--line); background: var(--card); }
+  .result.good { background: var(--good-soft); border-color: transparent; }
+  .result.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); }
+  .result ul { margin: 8px 0 0; padding-left: 18px; }
+
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 8px 0 16px; }
+  .search { flex: 1 1 220px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; }
+  .chip { border-radius: 999px; padding: 5px 12px; font-weight: 500; font-size: 14px; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow); }
+  .card.edited { outline: 2px solid var(--warn); }
+  .photo { position: relative; overflow: hidden; aspect-ratio: 4 / 3; background: var(--accent-soft); display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+  .photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .title { font-weight: 600; line-height: 1.3; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+  .badge.good { background: var(--good-soft); color: var(--good); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.muted { background: var(--line); color: var(--muted); }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: auto; }
+  .fields label { font-size: 12px; color: var(--muted); display: grid; gap: 3px; }
+  .money { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .money span { padding-left: 8px; color: var(--muted); }
+  .money input, .stepper input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; padding: 6px 8px; }
+  .stepper { display: flex; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .stepper button { padding: 0 10px; border: 0; border-radius: 0; background: transparent; font-size: 18px; line-height: 1; }
+  .stepper input { text-align: center; padding: 6px 0; }
+  input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(560px, calc(100% - 32px));
+         background: var(--ink); color: var(--bg); border-radius: 14px; padding: 10px 10px 10px 18px; display: flex;
+         align-items: center; gap: 10px; box-shadow: 0 8px 30px rgb(0 0 0 / 25%); }
+  .bar[hidden] { display: none; }
+  .bar span { flex: 1; }
+  .bar .ghost { background: transparent; color: var(--bg); border-color: transparent; font-weight: 500; }
+
+  section { margin-top: 40px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .drop { border: 2px dashed var(--line); border-radius: 12px; padding: 22px; text-align: center; cursor: pointer; display: block; }
+  .drop:hover { border-color: var(--accent); }
+  .drop input { display: none; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; margin-top: 12px; }
+  summary { cursor: pointer; font-weight: 600; }
+  .scroll { overflow-x: auto; margin-top: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  td.wrap { white-space: normal; min-width: 200px; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <div>
+      <h1>A bakery's point-of-sale, kept in sync with its Shopify store</h1>
+      <p class="lead">These products live in the bakery's register system (its POS). Change a price or a stock count
+        here, the way the staff would at the counter, then sync. The change shows up in the online store a moment later.</p>
+    </div>
+    <div class="store-card" id="store-card">
+      <b>The live Shopify store</b>
+      <p class="muted small" style="margin: 4px 0 10px">A real Shopify development store that this demo updates.</p>
+      <div id="store-links" class="row"></div>
+    </div>
+  </div>
+
+  <ol class="steps">
+    <li><b>1. Change a product</b><span>Edit a price, or use − and + on the stock.</span></li>
+    <li><b>2. Sync to Shopify</b><span>Only the products you changed are sent.</span></li>
+    <li><b>3. See it in the store</b><span>Use "View in store" on the product.</span></li>
+    <li><b>4. Try your own list</b><span>Upload a spreadsheet and see how AI reads it.</span></li>
+  </ol>
+
+  <div id="result" aria-live="polite"></div>
+
+  <div class="toolbar">
+    <input class="search" id="search" type="search" placeholder="Search products" aria-label="Search products">
+    <div class="row" id="categories"></div>
+  </div>
+  <div class="grid" id="grid"><p class="muted">Loading products...</p></div>
+
+  <section>
+    <h2>Try it with your own product list</h2>
+    <p class="muted">Upload a product export from any register or spreadsheet. AI (Claude) works out which column is the
+      name, price, stock and so on, and shows how your first rows would look in Shopify. Nothing is saved or sent to the store.</p>
+    <div class="panel">
+      <label class="drop" id="drop">
+        <input type="file" id="csv" accept=".csv,text/csv,text/plain">
+        <b>Choose a CSV file</b> <span class="muted">or drop it here (up to 200 KB)</span>
+      </label>
+      <p class="small muted" style="margin: 10px 0 0">No file handy? <a href="#" id="sample">Download a sample</a>.
+        Limited to 3 uploads an hour.</p>
+      <div id="csv-status" class="small" style="margin-top: 10px"></div>
+      <div id="csv-result"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Behind the scenes</h2>
+    <p class="muted">For the technically curious: how the register's columns were matched to Shopify, and the sync history.</p>
+    <details>
+      <summary>How the register's columns map to Shopify</summary>
+      <p class="small muted" style="margin-top: 10px">Claude proposed this once, from the column names and sample rows.
+        A person approved it. Every sync applies it with plain, tested code.</p>
+      <div class="scroll"><table id="mapping"></table></div>
+    </details>
+    <details>
+      <summary>Recent syncs</summary>
+      <p class="small muted" style="margin-top: 10px">The store also syncs on its own every 15 minutes.</p>
+      <div class="scroll"><table id="runs"></table></div>
+    </details>
+  </section>
+
+  <footer>
+    Built by Grace Peralta. <a href="https://github.com/samaltaa/Pastry-Order-Automation-n8n">Source code</a> ·
+    <a href="https://github.com/samaltaa/Pastry-Order-Automation-n8n/blob/main/db/pos/IMAGE_CREDITS.md">Photo credits</a>
+    (Wikimedia Commons)
+  </footer>
+</main>
+
+<div class="bar" id="bar" hidden>
+  <span id="bar-text"></span>
+  <button class="ghost" id="discard">Discard</button>
+  <button class="primary" id="sync">Sync to Shopify</button>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const money = (value) => `$${Number(value).toFixed(2)}`;
+
+  // Builds elements with textContent only, so nothing from the data or an upload is treated as HTML.
+  function el(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (key === "class") node.className = value;
+      else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+      else if (value !== undefined && value !== null) node[key] = value;
+    }
+    for (const child of children.flat()) {
+      if (child === null || child === undefined || child === false) continue;
+      node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+    }
+    return node;
+  }
+
+  async function api(path, options = {}) {
+    const response = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = Array.isArray(body.detail)
+        ? body.detail.map((d) => (d.loc ? `${d.loc.at(-1)}: ${d.msg}` : d)).join("; ") : body.detail;
+      throw new Error(detail || `Something went wrong (${response.status})`);
+    }
+    return body;
+  }
+
+  let state = null;
+  let category = "All";
+  const pending = new Map();   // key -> { key, price, quantity }: edits waiting for "Sync to Shopify"
+
+  const storeUrl = (p) => state.storefront.url && p.handle ? `${state.storefront.url}/products/${p.handle}` : null;
+  const inStore = (p) => p.shopify && p.shopify.published && p.status === "ACTIVE";
+
+  function badge(p) {
+    if (p.excluded) return el("span", { class: "badge muted" }, "Not a product: skipped");
+    if (pending.has(p.key)) return el("span", { class: "badge warn" }, "Edited: not synced yet");
+    if (p.status === "DRAFT") return el("span", { class: "badge muted" }, "Hidden in store (inactive)");
+    if (inStore(p)) return el("span", { class: "badge good" }, "In the store");
+    return el("span", { class: "badge warn" }, "Not in the store yet");
+  }
+
+  function card(p) {
+    const edit = pending.get(p.key);
+    const price = el("input", { type: "number", step: "0.01", min: "0.25", max: "500", inputMode: "decimal",
+                                value: edit ? edit.price : p.price ?? "", disabled: p.excluded, ariaLabel: `Price of ${p.title}` });
+    const stock = el("input", { type: "number", step: "1", min: "0", max: "999", inputMode: "numeric",
+                                value: edit ? edit.quantity : p.quantity ?? "", disabled: p.excluded, ariaLabel: `Stock of ${p.title}` });
+    const remember = () => {
+      pending.set(p.key, { key: p.key, price: Number(price.value), quantity: Number(stock.value) });
+      node.classList.add("edited");
+      node.querySelector(".badge").replaceWith(badge(p));
+      updateBar();
+    };
+    price.addEventListener("input", remember);
+    stock.addEventListener("input", remember);
+    const step = (delta) => () => { stock.value = Math.max(0, Math.min(999, Number(stock.value || 0) + delta)); remember(); };
+
+    const link = inStore(p) && storeUrl(p)
+      ? el("a", { href: storeUrl(p), target: "_blank", rel: "noopener", class: "small" }, "View in store ↗") : null;
+    const node = el("article", { class: `card${edit ? " edited" : ""}` },
+      el("div", { class: "photo" }, p.image ? el("img", { src: p.image, alt: p.title, loading: "lazy" }) : "No photo"),
+      el("div", { class: "body" },
+        el("div", { class: "title" }, p.title ?? p.key),
+        el("div", { class: "meta" }, [p.sku, p.category].filter(Boolean).join(" · ")),
+        el("div", { class: "row" }, badge(p), link),
+        p.excluded ? null : el("div", { class: "fields" },
+          el("label", {}, "Price", el("div", { class: "money" }, el("span", {}, "$"), price)),
+          el("label", {}, "Stock", el("div", { class: "stepper" },
+            el("button", { type: "button", onclick: step(-1), ariaLabel: "One less" }, "−"), stock,
+            el("button", { type: "button", onclick: step(1), ariaLabel: "One more" }, "+"))),
+        ),
+      ),
+    );
+    return node;
+  }
+
+  function renderGrid() {
+    const query = $("search").value.trim().toLowerCase();
+    const shown = state.products.filter((p) =>
+      (category === "All" || p.category === category) &&
+      (!query || `${p.title} ${p.sku} ${p.category}`.toLowerCase().includes(query)));
+    $("grid").replaceChildren(...(shown.length ? shown.map(card) : [el("p", { class: "muted" }, "No products match.")]));
+  }
+
+  function renderCategories() {
+    const names = ["All", ...new Set(state.products.map((p) => p.category).filter(Boolean))];
+    $("categories").replaceChildren(...names.map((name) => el("button", {
+      type: "button", class: "chip", ariaPressed: String(name === category),
+      onclick: () => { category = name; renderCategories(); renderGrid(); },
+    }, name)));
+  }
+
+  function renderStore() {
+    const { url, password } = state.storefront;
+    $("store-links").replaceChildren(
+      el("a", { class: "button primary", href: url, target: "_blank", rel: "noopener" }, "Open the store ↗"),
+      ...(password ? [el("span", { class: "small" }, "Password: ", el("code", {}, password))] : []),
+    );
+  }
+
+  function renderDetails() {
+    $("mapping").replaceChildren(
+      el("thead", {}, el("tr", {}, ["Register column", "Shopify field", "How it's cleaned", "Confidence", "Why"].map((h) => el("th", {}, h)))),
+      el("tbody", {}, state.mapping.map((f) => el("tr", {},
+        el("td", {}, f.source_column),
+        el("td", {}, f.target === "ignore" ? el("span", { class: "muted" }, "not used") : f.target),
+        el("td", {}, f.target === "ignore" ? "" : f.transform),
+        el("td", {}, `${Math.round(f.confidence * 100)}%`),
+        el("td", { class: "wrap muted" }, f.reason)))));
+    $("runs").replaceChildren(
+      el("thead", {}, el("tr", {}, ["When", "Started by", "Result", "Changes"].map((h) => el("th", {}, h)))),
+      el("tbody", {}, state.runs.map((r) => el("tr", {},
+        el("td", {}, r.started_local),
+        el("td", {}, { demo: "this page", schedule: "schedule", manual: "owner" }[r.trigger] || r.trigger),
+        el("td", {}, r.status === "succeeded" ? (r.failed || r.conflicts ? "done, with notes" : "done") : r.status),
+        el("td", { class: "muted" }, `${r.created} new, ${r.updated} updated, ${r.stock_updated} stock changes`)))));
+  }
+
+  function updateBar() {
+    $("bar").hidden = pending.size === 0;
+    $("bar-text").textContent = `${pending.size} product${pending.size === 1 ? "" : "s"} edited`;
+  }
+
+  async function load() {
+    state = await api("/demo/api/state");
+    renderStore(); renderCategories(); renderGrid(); renderDetails(); updateBar();
+  }
+
+  function describe(change, sent) {
+    const product = state.products.find((p) => p.sku === change.sku);
+    const name = change.title || product?.title || change.sku;
+    const link = product && inStore(product) && storeUrl(product)
+      ? el("a", { href: storeUrl(product), target: "_blank", rel: "noopener" }, "View in store ↗") : null;
+    if (change.action === "failed") return el("li", {}, `${name}: not synced (${change.detail})`);
+    if (change.conflict) return el("li", {}, `${name}: the store had sold some since the last sync. The register's count was applied. `, link);
+    const edit = sent.get(product?.key);
+    const what = edit ? `now ${money(edit.price)}, ${edit.quantity} in stock` : { create: "added to the store", publish: "published" }[change.action] || "updated";
+    return el("li", {}, `${name}: ${what}. `, link);
+  }
+
+  $("sync").addEventListener("click", async () => {
+    const button = $("sync");
+    button.disabled = true;
+    button.textContent = "Syncing...";
+    const sent = new Map(pending);
+    try {
+      const report = await api("/demo/api/sync", { method: "POST", body: JSON.stringify({ edits: [...sent.values()] }) });
+      pending.clear();
+      await load();
+      const changed = report.changes;
+      $("result").replaceChildren(el("div", { class: "result good" },
+        el("b", {}, changed.length ? `Synced. ${changed.length} product${changed.length === 1 ? "" : "s"} updated in Shopify.` : "Synced. Nothing had changed."),
+        changed.length ? el("ul", {}, changed.map((c) => describe(c, sent))) : null));
+    } catch (error) {
+      $("result").replaceChildren(el("div", { class: "result bad" }, el("b", {}, "Not synced: "), error.message));
+    } finally {
+      button.disabled = false;
+      button.textContent = "Sync to Shopify";
+      $("result").scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  });
+
+  $("discard").addEventListener("click", () => { pending.clear(); renderGrid(); updateBar(); });
+  $("search").addEventListener("input", renderGrid);
+
+  const SAMPLE = "Item Name,SKU,Category,Regular Price,Wholesale Price,On Hand,Active,Taxable\n" +
+    "Banana Bread Loaf,BB-01,Bread,8.50,6.00,12,Y,N\nLemon Bar,LB-02,Bars,3.25,2.10,30,Y,Y\n" +
+    "Pumpkin Pie (seasonal),PP-03,Pies,18.00,14.00,0,N,Y\n";
+  $("sample").addEventListener("click", (event) => {
+    event.preventDefault();
+    const link = el("a", { href: URL.createObjectURL(new Blob([SAMPLE], { type: "text/csv" })), download: "sample-products.csv" });
+    link.click();
+  });
+
+  async function upload(file) {
+    if (!file) return;
+    if (file.size > 200000) { $("csv-status").textContent = "That file is over 200 KB."; return; }
+    $("csv-status").textContent = "Reading your columns with AI. This takes about 10 seconds...";
+    $("csv-result").replaceChildren();
+    try {
+      const report = await api("/demo/api/csv", { method: "POST", body: JSON.stringify({ content: await file.text() }) });
+      $("csv-status").replaceChildren(report.problems.length
+        ? el("span", { style: "color: var(--bad)" }, `This would need a fix before syncing: ${report.problems.join("; ")}`)
+        : el("span", { style: "color: var(--good)" }, "All set: this file could be synced to Shopify with this mapping."));
+      const fields = report.mapping.fields.filter((f) => f.target !== "ignore").map((f) => f.target);
+      $("csv-result").replaceChildren(
+        el("h3", { style: "margin: 18px 0 0" }, "How each column was read"),
+        el("div", { class: "scroll" }, el("table", {},
+          el("thead", {}, el("tr", {}, ["Your column", "Becomes", "Confidence", "Why"].map((h) => el("th", {}, h)))),
+          el("tbody", {}, report.mapping.fields.map((f) => el("tr", {},
+            el("td", {}, f.source_column),
+            el("td", {}, f.target === "ignore" ? el("span", { class: "muted" }, "not used") : f.target),
+            el("td", {}, `${Math.round(f.confidence * 100)}%`),
+            el("td", { class: "wrap muted" }, f.reason)))))),
+        el("h3", { style: "margin: 18px 0 0" }, "Your first rows, as Shopify would get them"),
+        el("div", { class: "scroll" }, el("table", {},
+          el("thead", {}, el("tr", {}, fields.map((h) => el("th", {}, h)))),
+          el("tbody", {}, report.preview.map((row) => el("tr", {},
+            fields.map((f) => el("td", {}, row.excluded ? "(skipped)" : String(row.shopify[f] ?? "")))))))),
+      );
+    } catch (error) {
+      $("csv-status").replaceChildren(el("span", { style: "color: var(--bad)" }, error.message));
+    } finally {
+      $("csv").value = "";
+    }
+  }
+  $("csv").addEventListener("change", (event) => upload(event.target.files[0]));
+  $("drop").addEventListener("dragover", (event) => event.preventDefault());
+  $("drop").addEventListener("drop", (event) => { event.preventDefault(); upload(event.dataTransfer.files[0]); });
+
+  load().catch((error) => $("grid").replaceChildren(el("p", { style: "color: var(--bad)" }, error.message)));
+</script>
+</body>
+</html>

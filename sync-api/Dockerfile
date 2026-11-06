@@ -14,4 +14,6 @@ USER nobody
 EXPOSE 3002
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3002/health', timeout=4)" || exit 1
-CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "3002"]
+# Only Caddy can reach this port in production, so its X-Forwarded-For header gives the visitor's real IP.
+CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "3002", \
+     "--proxy-headers", "--forwarded-allow-ips", "*"]

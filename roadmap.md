@@ -119,12 +119,75 @@ A fake point-of-sale database for the pastry shop. It has no real client data, a
 
 ## Phase 6: Things reviewers can test
 
-- [ ] `/sync` Telegram command for a manual run
-- [ ] Approve or reject a proposed mapping from Telegram (n8n inline buttons calling `/mappings/{id}/approve`)
-- [ ] **POS simulator:** a small page or a Telegram command that changes the price or stock of one product
-- [ ] **Bring your own data:** upload a CSV export from any POS (max 1 MB, 500 rows) and get an AI mapping plus a dry-run preview. It never writes to Shopify.
-- [ ] Storefront password and the steps to try it, in the README
-- [ ] Add `sync.<domain>` to the Caddyfile and an Uptime Kuma monitor
+- [x] **Demo page** (`/demo`, served by sync-api, on only with `DEMO_ENABLED=true`). Reviewers can:
+  - Browse the products as photo cards, with search, category filters and their Shopify status
+  - Change prices or stock (edits collect in a bottom bar), click **Sync to Shopify**, and open the product in the storefront
+  - Upload their own CSV: Claude maps it, and they see a preview of the first rows as Shopify fields. Nothing is stored or synced.
+  - See the approved mapping (with confidence and reasons) and the recent runs
+- [x] Safety on the public routes:
+  - Rate limits per visitor: 6 syncs/min, 3 CSV uploads/hour
+  - Edits are sent with the sync (at most 50) and limited to the price (0.25–500) and stock (0–999) of existing products. One bad edit saves nothing.
+  - CSV size limits: 200 KB and 40 columns; only the first 50 rows are sent to Claude
+  - The page builds everything with `textContent`, so uploaded data can't inject HTML
+  - The shared daily AI budget applies
+- [x] **Telegram owner commands** (only `OWNER_TELEGRAM_CHAT_ID`): `/sync`, `/mapping`, `/approve N`, `/reject N`, `/runs`. The order workflow's router has a new branch that forwards them to `POST /commands`; the replies are formatted in Python and tested.
+- [x] `app/service.py`: the API, the Telegram commands and the demo share one implementation of propose, review and sync
+- [x] Caddy site `{$SYNC_DOMAIN}`: exposes only `/demo*` and `/health`, with a 300 KB request limit. The rest of sync-api stays internal.
+- [x] Runbook step 9 (seed, `/mapping`, `/approve`, `/sync`), DNS record, `.env` values, Kuma monitor
+- [x] Bug found with the demo's CSV preview and fixed: the money transform read `RD$ 20,00` as 2000. It now handles decimal commas (`1.250,50`) and thousands commas (`1,250`).
+- [x] Products publish to the Online Store (`write_publications` scope), once per product
+- [x] English products for North American customers, with photos from Wikimedia Commons (credits in `db/pos/IMAGE_CREDITS.md`). The mapping has an `image` target, and the sync sends a photo only when its URL changes, because Shopify re-uploads every image it's sent.
+- [x] 68 tests; mapping eval at 97.1%
+- [ ] On the VPS: depends on the Phase 0 go-live
+
+**Done locally.** http://localhost:3003/demo
+
+## Phase 6b: Google Sheets and Excel through Make
+
+Many small businesses keep inventory in a spreadsheet, not a POS. The sheet becomes a second source for the same pipeline: Claude maps the columns, a person approves, and plain code syncs.
+
+```
+Google Sheet / Excel ──(Make)──▶ sync-api /sources/sheet ──▶ Postgres ──▶ Shopify
+                                      │
+                                      └─ headers changed? → Claude re-maps → Telegram asks to approve
+```
+
+**Who does what:**
+- Make connects to the client's tools and handles the Google or Microsoft sign-in, with no OAuth code of our own.
+- sync-api holds all the logic: mapping, validation, sync and conflicts, which keeps it tested and evaluated.
+- n8n stays on internal ops: the schedule, Telegram and alerts.
+- Make has no transformation logic. Its scenario blueprints are exported into `make/`.
+
+**Decisions:**
+- **Send the whole sheet each time.** On every change, Make posts all the rows. The hash check keeps unchanged rows free. Deleted rows and events arriving out of order stop being problems.
+- **Removed rows go to Draft.** A product missing from the sheet becomes Draft in Shopify, never deleted, so the change is reversible.
+- **One owner per SKU.** Every SKU belongs to one source. If the same SKU appears in two sources, it's flagged and skipped.
+  - Demo story: the register handles the counter items. The owner keeps a "Catering & Holiday Menu" sheet with its own SKUs.
+- **Header drift holds the sync.** If the columns no longer match the approved mapping, nothing syncs. Claude proposes a new mapping, and Telegram asks for `/approve N`.
+- **Bad cells fail per row.** One unreadable value fails its row only, never the whole run.
+- **Live means seconds.** Use Make's instant Google Sheets trigger rather than polling. Check the module names, plan limits and operation costs in Make's docs before building.
+
+**Steps:**
+- [x] Make account created
+- [ ] Ingest endpoint `POST /sources/sheet`:
+  - Protected by the API key
+  - Saves each snapshot
+  - Mapping and sync read it like a POS table
+  - Plus SKU ownership, Draft on removal, and tests
+- [ ] Caddy: expose the ingest endpoint (API key, body size limit) so Make's cloud can reach it. Locally this goes through the public tunnel.
+- [ ] Google Sheets Make scenario: watch changes → read all rows → POST to sync-api. Commit the blueprint.
+- [ ] Header drift: hold the sync, re-propose the mapping, send the Telegram approval message
+- [ ] Demo:
+  - A shared "Catering & Holiday Menu" sheet that anyone with the link can edit, with the header row protected
+  - A "Live from Google Sheets" panel on `/demo`
+  - Same limits as the demo page
+- [ ] Runbook and `.env.example` entries
+- [ ] Stretch: Make writes a "Sync status" column back into the sheet
+  - Example values: "✓ 3:02 pm", "Price unreadable"
+  - Written only when a row's status changes, so the write-back can't trigger a loop
+- [ ] Stretch: Excel (Microsoft 365) scenario posting to the same endpoint. Needs a Microsoft account.
+
+**Known gap (say it in the video):** online sales don't flow back to the sheet. The next sheet sync detects the conflict, applies the sheet's number and alerts the owner, the same "source wins" rule as the POS.
 
 ## Phase 7: Docs, README and video
 
@@ -138,13 +201,14 @@ A fake point-of-sale database for the pastry shop. It has no real client data, a
   2. Messy POS → AI mapping → approve
   3. First sync
   4. Change stock → Shopify updates by itself
-  5. 15 seconds on the production side (CI, alerts, backups)
-  6. What's next
+  5. Split screen: edit the Google Sheet → the storefront updates; rename a column → Telegram asks to approve
+  6. 15 seconds on the production side (CI, alerts, backups)
+  7. What's next
 - [ ] Update `resume.yaml` and `resume.tex` with the sync project bullets
 
 ## Later (mention it, don't build it)
 
-- Orders flowing back: an `orders/create` webhook reduces stock in the POS
+- Orders flowing back: an `orders/create` webhook reduces stock in the POS and in the sheet
 - Conflict rules when both sides change the same field
 - Bulk operations for catalogs over 1,000 products
 - A public app for many merchants, built with Shopify CLI and its template

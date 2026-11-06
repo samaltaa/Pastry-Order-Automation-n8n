@@ -118,6 +118,7 @@ services:
     environment:
       N8N_DOMAIN: ${N8N_DOMAIN}
       STATUS_DOMAIN: ${STATUS_DOMAIN}
+      SYNC_DOMAIN: ${SYNC_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
     ports:
       - "80:80"
@@ -130,6 +131,7 @@ services:
     depends_on:
       - n8n
       - uptime-kuma
+      - sync-api
     deploy:
       resources:
         limits: { cpus: "0.5", memory: 128M }

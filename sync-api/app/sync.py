@@ -6,6 +6,8 @@ For each row:
 - Stock changed: set it (inventorySetQuantities). changeFromQuantity is the quantity this sync last set,
   so if Shopify's stock moved since then (an online sale), Shopify refuses. That's reported as a
   conflict, and the POS quantity is applied.
+- Not yet on the storefront: publish it to the Online Store channel (publishablePublish). Products
+  created through the API aren't on any sales channel until they're published.
 - Nothing changed: no Shopify call at all. sync.items remembers a hash of what was last sent.
 """
 
@@ -50,6 +52,16 @@ query ReadStock($id: ID!, $locationId: ID!) {
 
 FIRST_LOCATION = "{ locations(first: 1) { nodes { id } } }"
 
+PUBLICATIONS = "{ publications(first: 20) { nodes { id name } } }"
+
+PUBLISH = """
+mutation Publish($id: ID!, $input: [PublicationInput!]!) {
+  publishablePublish(id: $id, input: $input) {
+    userErrors { field message }
+  }
+}
+"""
+
 
 class NoApprovedMapping(Exception):
     pass
@@ -67,6 +79,11 @@ def product_hash(product: dict) -> str:
 
 def handle_for(sku: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", sku.lower()).strip("-")
+
+
+def image_changed(product: dict, item: dict | None) -> bool:
+    """Shopify re-uploads an image every time it's sent, so it's only sent when the URL changes."""
+    return product.get("image") != (item["last_image"] if item else None)
 
 
 def product_input(product: dict, item: dict | None, location_id: str | None) -> tuple[dict, dict]:
@@ -92,6 +109,11 @@ def product_input(product: dict, item: dict | None, location_id: str | None) -> 
         data["productType"] = product["product_type"]
     if product.get("status"):
         data["status"] = product["status"]
+    if image_changed(product, item):
+        image = product.get("image")
+        data["files"] = (
+            [{"originalSource": image, "alt": product["title"], "contentType": "IMAGE"}] if image else []
+        )
 
     if item:
         variant["id"] = item["shopify_variant_id"]
@@ -111,11 +133,25 @@ class Sync:
         self.conn = conn
         self.shopify = shopify
         self.location_id = location_id
+        self.online_store_id: str | None = None
 
     def location(self) -> str:
         if not self.location_id:
             self.location_id = self.shopify.graphql(FIRST_LOCATION)["locations"]["nodes"][0]["id"]
         return self.location_id
+
+    def publish(self, product_id: str) -> None:
+        if not self.online_store_id:
+            channels = self.shopify.graphql(PUBLICATIONS)["publications"]["nodes"]
+            online_store = next((channel for channel in channels if channel["name"] == "Online Store"), None)
+            if not online_store:
+                raise ShopifyError([{"message": "The store has no Online Store sales channel"}])
+            self.online_store_id = online_store["id"]
+        result = self.shopify.graphql(
+            PUBLISH, {"id": product_id, "input": [{"publicationId": self.online_store_id}]}
+        )["publishablePublish"]
+        if result["userErrors"]:
+            raise ShopifyError(result["userErrors"])
 
     def upsert_product(self, product: dict, item: dict | None) -> dict:
         identifier, data = product_input(product, item, None if item else self.location())
@@ -181,20 +217,31 @@ def approved_mapping(conn: Connection, source_table: str) -> tuple[int, Mapping]
     return row[0], Mapping.model_validate(row[1])
 
 
-def save_item(conn: Connection, sku: str, source_key: str, data_hash: str, ids: dict, quantity) -> None:
+def save_item(
+    conn: Connection, sku: str, source_key: str, data_hash: str, ids: dict, quantity, image: str | None
+) -> None:
     conn.execute(
         """
         INSERT INTO sync.items (sku, source_key, data_hash, shopify_product_id, shopify_variant_id,
-                                shopify_inventory_item_id, last_quantity, last_error, synced_at)
+                                shopify_inventory_item_id, last_quantity, last_image, published, last_error,
+                                synced_at)
         VALUES (%(sku)s, %(source_key)s, %(data_hash)s, %(shopify_product_id)s, %(shopify_variant_id)s,
-                %(shopify_inventory_item_id)s, %(quantity)s, NULL, NOW())
+                %(shopify_inventory_item_id)s, %(quantity)s, %(image)s, TRUE, NULL, NOW())
         ON CONFLICT (sku) DO UPDATE SET
           source_key = EXCLUDED.source_key, data_hash = EXCLUDED.data_hash,
           shopify_product_id = EXCLUDED.shopify_product_id, shopify_variant_id = EXCLUDED.shopify_variant_id,
           shopify_inventory_item_id = EXCLUDED.shopify_inventory_item_id,
-          last_quantity = EXCLUDED.last_quantity, last_error = NULL, synced_at = NOW()
+          last_quantity = EXCLUDED.last_quantity, last_image = EXCLUDED.last_image, published = TRUE,
+          last_error = NULL, synced_at = NOW()
         """,
-        {"sku": sku, "source_key": source_key, "data_hash": data_hash, "quantity": quantity, **ids},
+        {
+            "sku": sku,
+            "source_key": source_key,
+            "data_hash": data_hash,
+            "quantity": quantity,
+            "image": image,
+            **ids,
+        },
     )
 
 
@@ -241,7 +288,8 @@ def run_sync(
 
 def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_run: bool, run_id: int) -> dict:
     counts = dict.fromkeys(
-        ["created", "updated", "stock_updated", "unchanged", "excluded", "failed", "conflicts"], 0
+        ["created", "updated", "stock_updated", "published", "unchanged", "excluded", "failed", "conflicts"],
+        0,
     )
     changes: list[dict] = []
     known = {row["sku"]: row for row in conn.cursor(row_factory=dict_row).execute("SELECT * FROM sync.items")}
@@ -262,12 +310,21 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
         item = known.get(sku)
         data_changed = item is None or item["data_hash"] != data_hash
         stock_changed = item is not None and quantity is not None and quantity != item["last_quantity"]
-        if not data_changed and not stock_changed:
+        needs_publishing = item is None or not item["published"]
+        if not data_changed and not stock_changed and not needs_publishing:
             counts["unchanged"] += 1
             continue
 
-        action = "create" if item is None else "update" if data_changed else "stock"
-        change = {"sku": sku, "action": action}
+        action = (
+            "create"
+            if item is None
+            else "update"
+            if data_changed
+            else "stock"
+            if stock_changed
+            else "publish"
+        )
+        change = {"sku": sku, "title": product["title"], "action": action}
         if stock_changed:
             change["detail"] = f"stock {item['last_quantity']} -> {quantity}"
         if dry_run:
@@ -275,6 +332,8 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
                 counts["created" if item is None else "updated"] += 1
             if stock_changed:
                 counts["stock_updated"] += 1
+            if needs_publishing:
+                counts["published"] += 1
             changes.append(change)
             continue
 
@@ -293,7 +352,10 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
                         f"POS value {quantity} applied"
                     )
                     change["conflict"] = True
-            save_item(conn, sku, source_key, data_hash, ids, quantity)
+            if needs_publishing:
+                sync.publish(ids["shopify_product_id"])
+                counts["published"] += 1
+            save_item(conn, sku, source_key, data_hash, ids, quantity, product.get("image"))
             conn.commit()
             changes.append(change)
         except ShopifyError as error:

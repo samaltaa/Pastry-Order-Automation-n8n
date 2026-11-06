@@ -44,6 +44,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-pastry}:${POSTGRES_PASSWORD:-change_me}@postgres:5432/${POSTGRES_DB:-pastry_ops}
+      DEMO_ENABLED: ${DEMO_ENABLED:-true}
     depends_on:
       ops-api:
         condition: service_healthy

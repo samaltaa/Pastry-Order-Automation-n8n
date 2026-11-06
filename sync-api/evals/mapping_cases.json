@@ -1,6 +1,6 @@
 [
  {
-  "name": "Pastry shop (Spanish, text prices)",
+  "name": "Pastry shop (Spanish POS, English products, photos)",
   "table": {
    "table": "pos.articulos",
    "columns": [
@@ -51,125 +51,62 @@
     {
      "name": "fecha_mod",
      "type": "timestamp without time zone"
+    },
+    {
+     "name": "imagen_url",
+     "type": "text"
     }
    ],
    "rows": [
     {
-     "codigo": "REP-001",
-     "descripcion": "BIZCOCHO DOMINICANO VAINILLA 1LB",
-     "categoria": "BIZCOCHOS",
-     "unidad": "UND",
-     "precio_venta": "$24.00",
-     "costo": "9.50",
-     "existencia": "6.00",
-     "itbis": "S",
-     "activo": "S",
-     "cod_barra": "746000100011",
-     "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
-    },
-    {
-     "codigo": "REP-002",
-     "descripcion": "BIZCOCHO DOMINICANO CHOCOLATE 1LB",
-     "categoria": "BIZCOCHOS",
-     "unidad": "UND",
-     "precio_venta": "$26.00",
-     "costo": "10.20",
-     "existencia": "4.00",
-     "itbis": "S",
-     "activo": "S",
-     "cod_barra": "746000100028",
-     "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
-    },
-    {
-     "codigo": "REP-003",
-     "descripcion": "BIZC. DOM. VAINILLA 1/2 LB",
-     "categoria": "BIZCOCHOS",
-     "unidad": "UND",
-     "precio_venta": "13.5",
-     "costo": "5.10",
+     "codigo": "REP-010",
+     "descripcion": "TRES LECHES SLICE",
+     "categoria": "DESSERTS",
+     "unidad": "PORC",
+     "precio_venta": "$4.50",
+     "costo": "1.60",
      "existencia": "9.00",
      "itbis": "S",
      "activo": "S",
-     "cod_barra": "746000100035",
-     "nota_interna": "pedir con 24h",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
-    },
-    {
-     "codigo": "REP-004",
-     "descripcion": "BIZCOCHO RED VELVET 1LB",
-     "categoria": "BIZCOCHOS",
-     "unidad": "UND",
-     "precio_venta": "US$ 28.00",
-     "costo": "11.00",
-     "existencia": "3.00",
-     "itbis": "S",
-     "activo": "S",
-     "cod_barra": "746000100042",
+     "cod_barra": "746000100103",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
-    },
-    {
-     "codigo": "REP-005",
-     "descripcion": "BIZCOCHO ZANAHORIA C/ QUESO CREMA",
-     "categoria": "BIZCOCHOS",
-     "unidad": "UND",
-     "precio_venta": "$27.00",
-     "costo": "10.80",
-     "existencia": "2.00",
-     "itbis": "S",
-     "activo": "S",
-     "cod_barra": null,
-     "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
-    },
-    {
-     "codigo": "rep-006 ",
-     "descripcion": "Bizcocho de naranja",
-     "categoria": "BIZCOCHOS",
-     "unidad": "UND",
-     "precio_venta": "22",
-     "costo": "8.40",
-     "existencia": "5.00",
-     "itbis": "S",
-     "activo": "S",
-     "cod_barra": "",
-     "nota_interna": "codigo viejo, no cambiar",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Pastel_de_Tres_Leches.jpg/960px-Pastel_de_Tres_Leches.jpg"
     },
     {
      "codigo": "REP-011",
-     "descripcion": "TRES LECHES ENTERO 10\"",
-     "categoria": "POSTRES",
+     "descripcion": "TRES LECHES WHOLE 10\"",
+     "categoria": "DESSERTS",
      "unidad": "UND",
-     "precio_venta": "$32.00",
+     "precio_venta": "$34.00",
      "costo": "12.50",
      "existencia": "3.00",
      "itbis": "S",
      "activo": "S",
      "cod_barra": "746000100110",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ca/Pastel_de_Tres_Leches.jpg/960px-Pastel_de_Tres_Leches.jpg"
     },
     {
      "codigo": "REP-012",
-     "descripcion": "FLAN DE LECHE PORCION",
-     "categoria": "POSTRES",
+     "descripcion": "MILK FLAN SLICE",
+     "categoria": "DESSERTS",
      "unidad": "PORC",
      "precio_venta": "3.75",
      "costo": "1.10",
-     "existencia": "20.00",
+     "existencia": "22.00",
      "itbis": "S",
      "activo": "S",
      "cod_barra": "746000100127",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Cremecaramel.jpg/960px-Cremecaramel.jpg"
     },
     {
      "codigo": "REP-013",
-     "descripcion": "FLAN DE COCO ENTERO",
-     "categoria": "POSTRES",
+     "descripcion": "COCONUT FLAN WHOLE",
+     "categoria": "DESSERTS",
      "unidad": "UND",
      "precio_venta": "$19.00",
      "costo": "6.80",
@@ -178,26 +115,28 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/58/Cremecaramel.jpg/960px-Cremecaramel.jpg"
     },
     {
      "codigo": "REP-014",
-     "descripcion": "CHEESECAKE CHINOLA PORCION",
-     "categoria": "POSTRES",
+     "descripcion": "PASSION FRUIT CHEESECAKE SLICE",
+     "categoria": "DESSERTS",
      "unidad": "PORC",
-     "precio_venta": "$5.25",
+     "precio_venta": "6.25",
      "costo": "2.00",
-     "existencia": "12.00",
+     "existencia": "14.00",
      "itbis": "S",
      "activo": "S",
      "cod_barra": "746000100141",
      "nota_interna": "chinola = maracuya",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/Baked_cheesecake_with_raspberries_and_blueberries.jpg/960px-Baked_cheesecake_with_raspberries_and_blueberries.jpg"
     },
     {
      "codigo": "REP-015",
-     "descripcion": "CHEESECAKE FRESA ENTERO",
-     "categoria": "POSTRES",
+     "descripcion": "STRAWBERRY CHEESECAKE WHOLE",
+     "categoria": "DESSERTS",
      "unidad": "UND",
      "precio_venta": "$36.00",
      "costo": "14.00",
@@ -206,12 +145,13 @@
      "activo": "S",
      "cod_barra": "746000100158",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/ea/Baked_cheesecake_with_raspberries_and_blueberries.jpg/960px-Baked_cheesecake_with_raspberries_and_blueberries.jpg"
     },
     {
      "codigo": "REP-016",
-     "descripcion": "TARTA DE COCO",
-     "categoria": "POSTRES",
+     "descripcion": "COCONUT TART",
+     "categoria": "DESSERTS",
      "unidad": "UND",
      "precio_venta": "$21.00",
      "costo": "7.90",
@@ -220,12 +160,13 @@
      "activo": "S",
      "cod_barra": "746000100165",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://upload.wikimedia.org/wikipedia/commons/8/8e/Coconut_cake_garnished_with_Peeps_candy.jpg"
     },
     {
      "codigo": "REP-017",
-     "descripcion": "MAJARETE VASO",
-     "categoria": "POSTRES",
+     "descripcion": "MAJARETE CORN PUDDING CUP",
+     "categoria": "DESSERTS",
      "unidad": "UND",
      "precio_venta": "2.50",
      "costo": "0.80",
@@ -234,12 +175,103 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Pudding_Corn.jpg"
+    },
+    {
+     "codigo": "REP-001",
+     "descripcion": "DOMINICAN VANILLA CAKE 1LB",
+     "categoria": "CAKES",
+     "unidad": "UND",
+     "precio_venta": "24.00",
+     "costo": "9.50",
+     "existencia": "20.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100011",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Victoria_Sponges.jpg/960px-Victoria_Sponges.jpg"
+    },
+    {
+     "codigo": "REP-002",
+     "descripcion": "DOMINICAN CHOCOLATE CAKE 1LB",
+     "categoria": "CAKES",
+     "unidad": "UND",
+     "precio_venta": "126.01",
+     "costo": "10.20",
+     "existencia": "100.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100028",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://upload.wikimedia.org/wikipedia/commons/5/55/Chocolate_fudge_cake.jpg"
+    },
+    {
+     "codigo": "REP-003",
+     "descripcion": "DOM. VANILLA CAKE 1/2 LB",
+     "categoria": "CAKES",
+     "unidad": "UND",
+     "precio_venta": "13.5",
+     "costo": "5.10",
+     "existencia": "9.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100035",
+     "nota_interna": "pedir con 24h",
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/80/Victoria_Sponges.jpg/960px-Victoria_Sponges.jpg"
+    },
+    {
+     "codigo": "REP-004",
+     "descripcion": "RED VELVET CAKE 1LB",
+     "categoria": "CAKES",
+     "unidad": "UND",
+     "precio_venta": "US$ 28.00",
+     "costo": "11.00",
+     "existencia": "3.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "746000100042",
+     "nota_interna": null,
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b2/Red_Velvet_Cake_Waldorf_Astoria.jpg/960px-Red_Velvet_Cake_Waldorf_Astoria.jpg"
+    },
+    {
+     "codigo": "REP-005",
+     "descripcion": "CARROT CAKE W/ CREAM CHEESE",
+     "categoria": "CAKES",
+     "unidad": "UND",
+     "precio_venta": "$27.00",
+     "costo": "10.80",
+     "existencia": "2.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": null,
+     "nota_interna": null,
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fe/Carrot_cake_at_America_Graffiti_%28cropped%29.jpg/960px-Carrot_cake_at_America_Graffiti_%28cropped%29.jpg"
+    },
+    {
+     "codigo": "rep-006 ",
+     "descripcion": "Orange pound cake",
+     "categoria": "CAKES",
+     "unidad": "UND",
+     "precio_venta": "22",
+     "costo": "8.40",
+     "existencia": "5.00",
+     "itbis": "S",
+     "activo": "S",
+     "cod_barra": "",
+     "nota_interna": "codigo viejo, no cambiar",
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Pound_cake_2.jpg/960px-Pound_cake_2.jpg"
     },
     {
      "codigo": "REP-018",
-     "descripcion": "HABICHUELAS C/ DULCE 16OZ",
-     "categoria": "POSTRES",
+     "descripcion": "SWEET CREAM OF BEANS 16OZ",
+     "categoria": "DESSERTS",
      "unidad": "UND",
      "precio_venta": "$6.00",
      "costo": "2.10",
@@ -248,12 +280,13 @@
      "activo": "N",
      "cod_barra": "746000100189",
      "nota_interna": "solo cuaresma",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f2/Habichuelas_con_dulce_dominicana.jpg/960px-Habichuelas_con_dulce_dominicana.jpg"
     },
     {
      "codigo": "REP-020",
-     "descripcion": "PAN DE AGUA",
-     "categoria": "PANADERIA",
+     "descripcion": "DOMINICAN BREAD ROLL",
+     "categoria": "BREAD",
      "unidad": "UND",
      "precio_venta": "0.35",
      "costo": "0.09",
@@ -262,12 +295,13 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Bread_rolls_at_a_bakery_%28cropped%29.jpg/960px-Bread_rolls_at_a_bakery_%28cropped%29.jpg"
     },
     {
      "codigo": "REP-021",
-     "descripcion": "PAN DE AGUA DOCENA",
-     "categoria": "PANADERIA",
+     "descripcion": "DOMINICAN BREAD ROLLS DOZEN",
+     "categoria": "BREAD",
      "unidad": "DOC",
      "precio_venta": "$3.90",
      "costo": "1.05",
@@ -276,12 +310,13 @@
      "activo": "S",
      "cod_barra": "746000100219",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Bread_rolls_at_a_bakery_%28cropped%29.jpg/960px-Bread_rolls_at_a_bakery_%28cropped%29.jpg"
     },
     {
      "codigo": "REP-022",
-     "descripcion": "PAN SOBAO",
-     "categoria": "PANADERIA",
+     "descripcion": "SOFT SANDWICH ROLL",
+     "categoria": "BREAD",
      "unidad": "UND",
      "precio_venta": "0.50",
      "costo": "0.14",
@@ -290,12 +325,13 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/Bread_rolls_at_a_bakery_%28cropped%29.jpg/960px-Bread_rolls_at_a_bakery_%28cropped%29.jpg"
     },
     {
      "codigo": "REP-023",
-     "descripcion": "CROISSANT MANTEQUILLA",
-     "categoria": "PANADERIA",
+     "descripcion": "BUTTER CROISSANT",
+     "categoria": "BREAD",
      "unidad": "UND",
      "precio_venta": "$2.25",
      "costo": "0.70",
@@ -304,12 +340,13 @@
      "activo": "S",
      "cod_barra": "746000100233",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/2a/Croissant-Petr_Kratochvil.jpg/960px-Croissant-Petr_Kratochvil.jpg"
     },
     {
      "codigo": "REP-024",
-     "descripcion": "PAN DE QUESO",
-     "categoria": "PANADERIA",
+     "descripcion": "CHEESE BREAD",
+     "categoria": "BREAD",
      "unidad": "UND",
      "precio_venta": "1.75",
      "costo": "0.55",
@@ -318,12 +355,13 @@
      "activo": "S",
      "cod_barra": "746000100240",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/20/Cheesebread.jpg/960px-Cheesebread.jpg"
     },
     {
      "codigo": "REP-025",
-     "descripcion": "PAN INTEGRAL MOLDE",
-     "categoria": "PANADERIA",
+     "descripcion": "WHOLE WHEAT LOAF",
+     "categoria": "BREAD",
      "unidad": "UND",
      "precio_venta": "$4.25",
      "costo": "1.40",
@@ -332,12 +370,13 @@
      "activo": "S",
      "cod_barra": "746000100257",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Vegan_no-knead_whole_wheat_bread_loaf%2C_September_2010.jpg/960px-Vegan_no-knead_whole_wheat_bread_loaf%2C_September_2010.jpg"
     },
     {
      "codigo": "REP-026",
-     "descripcion": "DONA GLASEADA",
-     "categoria": "PANADERIA",
+     "descripcion": "GLAZED DONUT",
+     "categoria": "BREAD",
      "unidad": "UND",
      "precio_venta": "1.25",
      "costo": "0.35",
@@ -346,12 +385,13 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": "agotado hoy",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a5/Glazed-Donut.jpg/960px-Glazed-Donut.jpg"
     },
     {
      "codigo": "REP-030",
-     "descripcion": "EMPANADA DE POLLO",
-     "categoria": "SALADOS",
+     "descripcion": "CHICKEN EMPANADA",
+     "categoria": "SAVORY",
      "unidad": "UND",
      "precio_venta": "$1.80",
      "costo": "0.60",
@@ -360,12 +400,13 @@
      "activo": "S",
      "cod_barra": "746000100301",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Tapa_de_empanadillitas.JPG/960px-Tapa_de_empanadillitas.JPG"
     },
     {
      "codigo": "REP-031",
-     "descripcion": "EMPANADA DE QUESO",
-     "categoria": "SALADOS",
+     "descripcion": "CHEESE EMPANADA",
+     "categoria": "SAVORY",
      "unidad": "UND",
      "precio_venta": "$1.60",
      "costo": "0.50",
@@ -374,12 +415,13 @@
      "activo": "S",
      "cod_barra": "746000100318",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Tapa_de_empanadillitas.JPG/960px-Tapa_de_empanadillitas.JPG"
     },
     {
      "codigo": "REP-032",
-     "descripcion": "EMPANADA DE CARNE",
-     "categoria": "SALADOS",
+     "descripcion": "BEEF EMPANADA",
+     "categoria": "SAVORY",
      "unidad": "UND",
      "precio_venta": "1.80",
      "costo": "0.62",
@@ -388,12 +430,13 @@
      "activo": "S",
      "cod_barra": "746000100325",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Tapa_de_empanadillitas.JPG/960px-Tapa_de_empanadillitas.JPG"
     },
     {
      "codigo": "REP-033",
-     "descripcion": "PASTELITO DE POLLO",
-     "categoria": "SALADOS",
+     "descripcion": "CHICKEN PASTELITO",
+     "categoria": "SAVORY",
      "unidad": "UND",
      "precio_venta": "1.50",
      "costo": "0.45",
@@ -402,12 +445,13 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/78/Tapa_de_empanadillitas.JPG/960px-Tapa_de_empanadillitas.JPG"
     },
     {
      "codigo": "REP-034",
-     "descripcion": "QUIPE",
-     "categoria": "SALADOS",
+     "descripcion": "KIBBEH (QUIPE)",
+     "categoria": "SAVORY",
      "unidad": "UND",
      "precio_venta": "$1.50",
      "costo": "0.48",
@@ -416,12 +460,13 @@
      "activo": "S",
      "cod_barra": "746000100349",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/88/Kibbeh3.jpg/960px-Kibbeh3.jpg"
     },
     {
      "codigo": "REP-035",
-     "descripcion": "BANDEJA PICADERA 50 PZS",
-     "categoria": "SALADOS",
+     "descripcion": "PARTY PLATTER 50 PCS",
+     "categoria": "SAVORY",
      "unidad": "UND",
      "precio_venta": "$45.00",
      "costo": "18.00",
@@ -430,12 +475,13 @@
      "activo": "S",
      "cod_barra": "746000100356",
      "nota_interna": "para fiestas",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": null
     },
     {
      "codigo": "REP-040",
-     "descripcion": "GALLETAS MANTEQUILLA 12 UND",
-     "categoria": "GALLETAS",
+     "descripcion": "BUTTER COOKIES 12 CT",
+     "categoria": "COOKIES",
      "unidad": "UND",
      "precio_venta": "$7.50",
      "costo": "2.40",
@@ -444,12 +490,13 @@
      "activo": "S",
      "cod_barra": "746000100400",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e5/2019-11-29_14_52_43_The_interior_of_a_tin_of_McKenzie_%26_Lloyds_Danish_Style_Butter_Cookies_in_the_Dulles_section_of_Sterling%2C_Loudoun_County%2C_Virginia.jpg/960px-2019-11-29_14_52_43_The_interior_of_a_tin_of_McKenzie_%26_Lloyds_Danish_Style_Butter_Cookies_in_the_Dulles_section_of_Sterling%2C_Loudoun_County%2C_Virginia.jpg"
     },
     {
      "codigo": "REP-041",
-     "descripcion": "GALLETAS CHOCOLATE CHIP",
-     "categoria": "GALLETAS",
+     "descripcion": "CHOCOLATE CHIP COOKIES",
+     "categoria": "COOKIES",
      "unidad": "LB",
      "precio_venta": "$9.00",
      "costo": "3.10",
@@ -458,12 +505,13 @@
      "activo": "S",
      "cod_barra": "746000100417",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://upload.wikimedia.org/wikipedia/commons/b/b4/Choco_chip_cookie.png"
     },
     {
      "codigo": "REP-042",
-     "descripcion": "POLVORONES",
-     "categoria": "GALLETAS",
+     "descripcion": "POLVORONES SHORTBREAD",
+     "categoria": "COOKIES",
      "unidad": "DOC",
      "precio_venta": "6",
      "costo": "1.80",
@@ -472,12 +520,13 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d4/MedinaSidonia-P1060062_%28cropped%29.JPG/960px-MedinaSidonia-P1060062_%28cropped%29.JPG"
     },
     {
      "codigo": "REP-043",
-     "descripcion": "ALFAJORES DULCE DE LECHE",
-     "categoria": "GALLETAS",
+     "descripcion": "DULCE DE LECHE ALFAJORES",
+     "categoria": "COOKIES",
      "unidad": "DOC",
      "precio_venta": "$8.50",
      "costo": "2.90",
@@ -486,12 +535,13 @@
      "activo": "S",
      "cod_barra": "746000100431",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0c/AlfajoresP1115215_02.jpg/960px-AlfajoresP1115215_02.jpg"
     },
     {
      "codigo": "REP-050",
-     "descripcion": "CAFE AMERICANO",
-     "categoria": "BEBIDAS",
+     "descripcion": "AMERICANO COFFEE",
+     "categoria": "DRINKS",
      "unidad": "UND",
      "precio_venta": "$1.75",
      "costo": "0.30",
@@ -500,12 +550,13 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": "no lleva inventario",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Espresso_Americano.jpeg/960px-Espresso_Americano.jpeg"
     },
     {
      "codigo": "REP-051",
-     "descripcion": "CHOCOLATE CALIENTE",
-     "categoria": "BEBIDAS",
+     "descripcion": "HOT CHOCOLATE",
+     "categoria": "DRINKS",
      "unidad": "UND",
      "precio_venta": "$2.50",
      "costo": "0.55",
@@ -514,12 +565,13 @@
      "activo": "S",
      "cod_barra": null,
      "nota_interna": "no lleva inventario",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": null
     },
     {
      "codigo": "REP-052",
-     "descripcion": "JUGO DE CHINOLA 16OZ",
-     "categoria": "BEBIDAS",
+     "descripcion": "PASSION FRUIT JUICE 16OZ",
+     "categoria": "DRINKS",
      "unidad": "UND",
      "precio_venta": "$3.00",
      "costo": "0.90",
@@ -528,12 +580,13 @@
      "activo": "S",
      "cod_barra": "746000100523",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": null
     },
     {
      "codigo": "REP-060",
-     "descripcion": "VELA CUMPLEANOS NUMERO",
-     "categoria": "ACCESORIOS",
+     "descripcion": "NUMBER BIRTHDAY CANDLE",
+     "categoria": "ACCESSORIES",
      "unidad": "UND",
      "precio_venta": "$1.00",
      "costo": "0.25",
@@ -542,12 +595,13 @@
      "activo": "S",
      "cod_barra": "746000100608",
      "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": null
     },
     {
      "codigo": "REP-061",
-     "descripcion": "CAJA BIZCOCHO 10\"",
-     "categoria": "ACCESORIOS",
+     "descripcion": "CAKE BOX 10\"",
+     "categoria": "ACCESSORIES",
      "unidad": "UND",
      "precio_venta": "0.75",
      "costo": "0.30",
@@ -556,7 +610,8 @@
      "activo": "N",
      "cod_barra": null,
      "nota_interna": "uso interno, no vender",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": null
     },
     {
      "codigo": "REP-099",
@@ -570,21 +625,8 @@
      "activo": "N",
      "cod_barra": null,
      "nota_interna": "articulo del sistema, ignorar",
-     "fecha_mod": "2026-11-05 16:44:01.872369"
-    },
-    {
-     "codigo": "REP-010",
-     "descripcion": "TRES LECHES PORCION",
-     "categoria": "POSTRES",
-     "unidad": "PORC",
-     "precio_venta": "$4.50",
-     "costo": "1.60",
-     "existencia": "18.00",
-     "itbis": "S",
-     "activo": "S",
-     "cod_barra": "746000100103",
-     "nota_interna": null,
-     "fecha_mod": "2026-11-05 16:44:02.806787"
+     "fecha_mod": "2026-11-06 00:08:42.008376",
+     "imagen_url": null
     }
    ]
   },
@@ -603,7 +645,8 @@
    "activo": "status",
    "cod_barra": "barcode",
    "nota_interna": "ignore",
-   "fecha_mod": "ignore"
+   "fecha_mod": "ignore",
+   "imagen_url": "image"
   },
   "transforms": {
    "precio_venta": [

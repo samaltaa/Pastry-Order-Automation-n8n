@@ -157,6 +157,39 @@
               },
               "renameOutput": true,
               "outputKey": "cancel"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "cmd-owner-chat",
+                    "leftValue": "={{ String($('Telegram webhook').first().json.body.message.chat.id) }}",
+                    "rightValue": "={{ $env.OWNER_TELEGRAM_CHAT_ID }}",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  },
+                  {
+                    "id": "cmd-owner-text",
+                    "leftValue": "={{ $('Telegram webhook').first().json.body.message.text.trim() }}",
+                    "rightValue": "^/(sync|mapping|approve|reject|runs)\\b",
+                    "operator": {
+                      "type": "string",
+                      "operation": "regex"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "owner"
             }
           ]
         },
@@ -422,6 +455,58 @@
           "appendAttribution": false
         }
       }
+    },
+    {
+      "id": "owner-command",
+      "name": "Run owner command",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        -600
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://sync-api:3002/commands",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "={{ $env.OPS_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $('Telegram webhook').first().json.body.message.text }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "owner-reply",
+      "name": "Reply to owner",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1320,
+        -600
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "pastryTelegramBot",
+          "name": "Pastry Telegram bot"
+        }
+      },
+      "parameters": {
+        "chatId": "={{ $('Telegram webhook').first().json.body.message.chat.id }}",
+        "text": "={{ $json.reply }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      }
     }
   ],
   "connections": {
@@ -483,6 +568,13 @@
         [
           {
             "node": "Reset conversation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run owner command",
             "type": "main",
             "index": 0
           }
@@ -577,6 +669,17 @@
         [
           {
             "node": "Confirm cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run owner command": {
+      "main": [
+        [
+          {
+            "node": "Reply to owner",
             "type": "main",
             "index": 0
           }

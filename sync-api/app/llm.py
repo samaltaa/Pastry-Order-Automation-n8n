@@ -25,6 +25,7 @@ Shopify targets:
 - barcode: UPC, EAN or GTIN
 - taxable: whether sales tax (ITBIS, IVA, VAT, sales tax) applies
 - status: whether the product is for sale
+- image: a link (URL) to a product photo
 - ignore: anything else (internal notes, timestamps, other price lists, units of measure, ...)
 
 Transforms:

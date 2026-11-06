@@ -21,3 +21,19 @@
 	import common
 	reverse_proxy uptime-kuma:3001
 }
+
+# Public demo of the POS -> Shopify sync. Only the demo page and health check are exposed;
+# the rest of sync-api (mappings, sync, commands) stays internal to n8n.
+{$SYNC_DOMAIN} {
+	import common
+	@public path /demo /demo/* /health
+	handle @public {
+		request_body {
+			max_size 300KB
+		}
+		reverse_proxy sync-api:3002
+	}
+	handle {
+		redir * /demo
+	}
+}

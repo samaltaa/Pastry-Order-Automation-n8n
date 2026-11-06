@@ -122,7 +122,7 @@ def test_claude_failures_are_logged_and_reported(database_url):
 
     with make_client(database_url, failing) as client:
         assert client.post("/mappings", json={"table": "test_items"}, headers=KEY).status_code == 502
-        with client.app.state.pool.connection() as conn:
+        with client.app.state.service.pool.connection() as conn:
             outcome = conn.execute(
                 "SELECT outcome FROM llm_calls WHERE route = 'sync/mapping' ORDER BY id DESC LIMIT 1"
             ).fetchone()

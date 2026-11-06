@@ -10,7 +10,17 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Target = Literal[
-    "title", "sku", "price", "cost", "quantity", "product_type", "barcode", "taxable", "status", "ignore"
+    "title",
+    "sku",
+    "price",
+    "cost",
+    "quantity",
+    "product_type",
+    "barcode",
+    "taxable",
+    "status",
+    "image",
+    "ignore",
 ]
 Transform = Literal[
     "none",
@@ -83,7 +93,14 @@ def _flag(value: str) -> bool | None:
 
 
 def _money(value: str) -> str | None:
-    cleaned = "".join(char for char in value if char.isdigit() or char in ".-")
+    """Reads both 1,250.50 and 1.250,50. A lone comma is decimal unless 3 digits follow (1,250)."""
+    cleaned = "".join(char for char in value if char.isdigit() or char in ".,-")
+    if "," in cleaned and "." in cleaned:
+        decimal_comma = cleaned.rfind(",") > cleaned.rfind(".")
+        cleaned = cleaned.replace(".", "").replace(",", ".") if decimal_comma else cleaned.replace(",", "")
+    elif "," in cleaned:
+        whole, _, fraction = cleaned.rpartition(",")
+        cleaned = cleaned.replace(",", "") if len(fraction) == 3 else f"{whole.replace(',', '')}.{fraction}"
     try:
         return str(Decimal(cleaned).quantize(Decimal("0.01")))
     except InvalidOperation:

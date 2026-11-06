@@ -3,6 +3,11 @@ from pathlib import Path
 
 import psycopg
 import pytest
+from fastapi.testclient import TestClient
+from psycopg.types.json import Jsonb
+
+from app.config import Settings
+from app.main import create_app
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "db" / "migrations"
 
@@ -31,3 +36,178 @@ def database_url():
             """
         )
     return url
+
+
+MAPPING = {
+    "key_column": "codigo",
+    "fields": [
+        {
+            "source_column": "codigo",
+            "target": "sku",
+            "transform": "trim_upper",
+            "confidence": 1,
+            "reason": "-",
+        },
+        {
+            "source_column": "descripcion",
+            "target": "title",
+            "transform": "title_case",
+            "confidence": 1,
+            "reason": "-",
+        },
+        {"source_column": "precio", "target": "price", "transform": "money", "confidence": 1, "reason": "-"},
+        {
+            "source_column": "existencia",
+            "target": "quantity",
+            "transform": "integer",
+            "confidence": 1,
+            "reason": "-",
+        },
+        {
+            "source_column": "activo",
+            "target": "status",
+            "transform": "active_status",
+            "confidence": 1,
+            "reason": "-",
+        },
+        {"source_column": "foto", "target": "image", "transform": "trim", "confidence": 1, "reason": "-"},
+    ],
+    "excluded_rows": [{"key": "SYS", "reason": "System row"}],
+}
+
+
+class FakeStore:
+    """A tiny in-memory Shopify that answers the four operations the sync uses."""
+
+    def __init__(self):
+        self.products: dict[str, dict] = {}
+        self.stock: dict[str, int] = {}
+        self.writes: list[str] = []
+        self.published: set[str] = set()
+
+    def graphql(self, query, variables=None):
+        if "locations" in query:
+            return {"locations": {"nodes": [{"id": "loc-1"}]}}
+        if "publishablePublish" in query:
+            assert variables["input"] == [{"publicationId": "pub-online-store"}]
+            self.published.add(variables["id"])
+            return {"publishablePublish": {"userErrors": []}}
+        if "publications" in query:
+            channels = [
+                {"id": "pub-pos", "name": "Point of Sale"},
+                {"id": "pub-online-store", "name": "Online Store"},
+            ]
+            return {"publications": {"nodes": channels}}
+        if "productSet" in query:
+            return self.product_set(variables["identifier"], variables["input"])
+        if "inventorySetQuantities" in query:
+            return self.set_stock(variables["input"]["quantities"][0])
+        if "inventoryItem(" in query:
+            quantity = self.stock[variables["id"]]
+            return {
+                "inventoryItem": {
+                    "inventoryLevel": {"quantities": [{"name": "available", "quantity": quantity}]}
+                }
+            }
+        raise AssertionError(f"Unexpected query: {query}")
+
+    def product_set(self, identifier, data):
+        found = next(
+            (
+                p
+                for p in self.products.values()
+                if identifier.get("id") == p["id"] or identifier.get("handle") == p["handle"]
+            ),
+            None,
+        )
+        if found is None:
+            number = len(self.products) + 1
+            found = {
+                "id": f"p{number}",
+                "variant": f"v{number}",
+                "item": f"i{number}",
+                "handle": data["handle"],
+            }
+            self.products[found["id"]] = found
+        variant = data["variants"][0]
+        found.update(
+            title=data["title"], price=variant["price"], sku=variant["sku"], status=data.get("status")
+        )
+        if "files" in data:
+            found["images"] = [file["originalSource"] for file in data["files"]]
+            self.writes.append(f"images {variant['sku']}")
+        for level in variant.get("inventoryQuantities", []):
+            self.stock[found["item"]] = level["quantity"]
+        self.writes.append(f"productSet {variant['sku']}")
+        product = {
+            "id": found["id"],
+            "variants": {"nodes": [{"id": found["variant"], "inventoryItem": {"id": found["item"]}}]},
+        }
+        return {"productSet": {"product": product, "userErrors": []}}
+
+    def set_stock(self, quantity):
+        item = quantity["inventoryItemId"]
+        expected = quantity["changeFromQuantity"]
+        if expected is not None and self.stock.get(item) != expected:
+            error = {"field": ["input"], "message": "stale", "code": "CHANGE_FROM_QUANTITY_STALE"}
+            return {"inventorySetQuantities": {"userErrors": [error]}}
+        self.stock[item] = quantity["quantity"]
+        self.writes.append(f"stock {item}={quantity['quantity']}")
+        return {"inventorySetQuantities": {"userErrors": []}}
+
+    def by_sku(self, sku):
+        return next(p for p in self.products.values() if p["sku"] == sku)
+
+    def close(self):
+        pass
+
+
+@pytest.fixture
+def db(database_url):
+    with psycopg.connect(database_url, autocommit=True) as conn:
+        conn.execute("TRUNCATE sync.items, sync.runs, sync.mappings RESTART IDENTITY CASCADE")
+        conn.execute("DROP TABLE IF EXISTS pos.sync_test")
+        conn.execute(
+            "CREATE TABLE pos.sync_test"
+            " (codigo TEXT PRIMARY KEY, descripcion TEXT, precio TEXT, existencia NUMERIC, activo CHAR(1),"
+            "  foto TEXT)"
+        )
+        conn.execute(
+            """
+            INSERT INTO pos.sync_test VALUES
+              ('a-1 ', 'TRES LECHES PORCION', '$4.50', 18, 'S', 'https://img.test/tres-leches.jpg'),
+              ('A-2', 'FLAN DE COCO', '19', 2, 'N', NULL),
+              ('A-3', 'SIN PRECIO', '', 5, 'S', NULL),
+              ('SYS', 'AJUSTE', '0', 0, 'N', NULL)
+            """
+        )
+        conn.execute(
+            "INSERT INTO sync.mappings (source_table, mapping, status, reviewed_at)"
+            " VALUES ('pos.sync_test', %s, 'approved', NOW())",
+            (Jsonb(MAPPING),),
+        )
+        yield conn
+
+
+@pytest.fixture
+def store():
+    return FakeStore()
+
+
+@pytest.fixture
+def make_client(database_url, store):
+    """Builds a test client against the fake store. Pass a fake mapper and any setting overrides."""
+
+    def build(mapper=lambda table: None, **overrides):
+        settings = Settings(
+            database_url=database_url,
+            ops_api_key="test-key",
+            shopify_store="demo.myshopify.com",
+            shopify_client_id="id",
+            shopify_client_secret="secret",
+            demo_table="sync_test",
+            **overrides,
+        )
+        return TestClient(create_app(settings, shopify=store, mapper=mapper))
+
+    return build
