@@ -1,14 +1,17 @@
-"""Pushes POS rows to Shopify with the approved mapping. The POS is the source of truth.
+"""Pushes source rows (a POS table or a spreadsheet) to Shopify with the approved mapping. The source
+is the source of truth.
 
 For each row:
 - New SKU: create the product with its stock (productSet).
 - Product data changed (title, price, ...): update the product (productSet).
 - Stock changed: set it (inventorySetQuantities). changeFromQuantity is the quantity this sync last set,
   so if Shopify's stock moved since then (an online sale), Shopify refuses. That's reported as a
-  conflict, and the POS quantity is applied.
+  conflict, and the source quantity is applied.
 - Not yet on the storefront: publish it to the Online Store channel (publishablePublish). Products
   created through the API aren't on any sales channel until they're published.
 - Nothing changed: no Shopify call at all. sync.items remembers a hash of what was last sent.
+- Gone from the source (a deleted row): set to Draft, never deleted, so it can come back. If more
+  than half the products would go at once, nothing is removed: that's a broken source, not a sale.
 """
 
 import hashlib
@@ -19,10 +22,11 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 
 from app.mapping import REQUIRED_TARGETS, Mapping, apply, is_excluded
-from app.pos import POS_SCHEMA, read_rows
 from app.shopify import ShopifyClient, ShopifyError
+from app.sources import full_name, read_rows
 
 LOCK_ID = 7_270_002
+COUNTS = "created updated stock_updated published unchanged excluded failed conflicts removed".split()
 SHOPIFY_IDS = ("shopify_product_id", "shopify_variant_id", "shopify_inventory_item_id")
 
 PRODUCT_SET = """
@@ -53,6 +57,16 @@ query ReadStock($id: ID!, $locationId: ID!) {
 FIRST_LOCATION = "{ locations(first: 1) { nodes { id } } }"
 
 PUBLICATIONS = "{ publications(first: 20) { nodes { id name } } }"
+
+DRAFT = """
+mutation Draft($product: ProductUpdateInput!) {
+  productUpdate(product: $product) {
+    userErrors { field message }
+  }
+}
+"""
+
+REMOVED = "removed"
 
 PUBLISH = """
 mutation Publish($id: ID!, $input: [PublicationInput!]!) {
@@ -109,6 +123,8 @@ def product_input(product: dict, item: dict | None, location_id: str | None) -> 
         data["productType"] = product["product_type"]
     if product.get("status"):
         data["status"] = product["status"]
+    elif item and item["data_hash"] == REMOVED:
+        data["status"] = "ACTIVE"  # it was drafted when it left the source, and now it's back
     if image_changed(product, item):
         image = product.get("image")
         data["files"] = (
@@ -164,6 +180,11 @@ class Sync:
             "shopify_variant_id": variant["id"],
             "shopify_inventory_item_id": variant["inventoryItem"]["id"],
         }
+
+    def draft(self, product_id: str) -> None:
+        result = self.shopify.graphql(DRAFT, {"product": {"id": product_id, "status": "DRAFT"}})
+        if errors := result["productUpdate"]["userErrors"]:
+            raise ShopifyError(errors)
 
     def set_stock(self, item: dict, quantity: int, key: str) -> int | None:
         """Sets stock. Returns Shopify's quantity if it had changed since the last sync (a conflict)."""
@@ -252,8 +273,7 @@ def run_sync(
     if not conn.execute("SELECT pg_try_advisory_lock(%s)", (LOCK_ID,)).fetchone()[0]:
         raise SyncAlreadyRunning("A sync is already running")
     try:
-        source_table = f"{POS_SCHEMA}.{table}"
-        mapping_id, mapping = approved_mapping(conn, source_table)
+        mapping_id, mapping = approved_mapping(conn, full_name(table))
         run_id = conn.execute(
             "INSERT INTO sync.runs (mapping_id, trigger, dry_run) VALUES (%s, %s, %s) RETURNING id",
             (mapping_id, trigger, dry_run),
@@ -273,7 +293,7 @@ def run_sync(
             """
             UPDATE sync.runs SET status = 'succeeded', finished_at = NOW(), created = %(created)s,
               updated = %(updated)s, stock_updated = %(stock_updated)s, skipped = %(unchanged)s,
-              failed = %(failed)s, conflicts = %(conflicts)s
+              failed = %(failed)s, conflicts = %(conflicts)s, removed = %(removed)s
             WHERE id = %(run_id)s
             """,
             {**report["counts"], "run_id": run_id},
@@ -287,12 +307,10 @@ def run_sync(
 
 
 def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_run: bool, run_id: int) -> dict:
-    counts = dict.fromkeys(
-        ["created", "updated", "stock_updated", "published", "unchanged", "excluded", "failed", "conflicts"],
-        0,
-    )
+    counts = dict.fromkeys(COUNTS, 0)
     changes: list[dict] = []
     known = {row["sku"]: row for row in conn.cursor(row_factory=dict_row).execute("SELECT * FROM sync.items")}
+    seen: set[str] = set()
 
     for row in read_rows(conn, table):
         if is_excluded(mapping, row):
@@ -301,6 +319,8 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
         product = apply(mapping, row)
         missing = sorted(target for target in REQUIRED_TARGETS if not product.get(target))
         source_key = str(row.get(mapping.key_column, "")).strip()
+        if product.get("sku"):
+            seen.add(product["sku"])  # a row with a bad value is still in the source: don't remove it
         if missing:
             counts["failed"] += 1
             changes.append({"sku": source_key, "action": "failed", "detail": f"Missing {', '.join(missing)}"})
@@ -349,7 +369,7 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
                     counts["conflicts"] += 1
                     change["detail"] = (
                         f"Shopify had {shopify_quantity}, expected {item['last_quantity']}; "
-                        f"POS value {quantity} applied"
+                        f"source value {quantity} applied"
                     )
                     change["conflict"] = True
             if needs_publishing:
@@ -365,4 +385,40 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
             conn.commit()
             changes.append({"sku": sku, "action": "failed", "detail": str(error)[:300]})
 
+    remove_missing(conn, sync, known, seen, dry_run, counts, changes)
     return {"counts": counts, "changes": changes}
+
+
+def remove_missing(
+    conn: Connection, sync: Sync, known: dict, seen: set, dry_run: bool, counts: dict, changes: list
+) -> None:
+    """Products no longer in the source go to Draft. Their hash is cleared, so if the row comes
+    back, the next sync sends the whole product again, status included."""
+    active = [item for sku, item in known.items() if item["data_hash"] != REMOVED]
+    gone = [item for item in active if item["sku"] not in seen]
+    if not gone:
+        return
+    if len(gone) * 2 > len(active):
+        counts["failed"] += 1
+        changes.append(
+            {
+                "sku": "*",
+                "action": "failed",
+                "detail": f"{len(gone)} of {len(active)} products are missing from the source. "
+                "Nothing was removed; check the source.",
+            }
+        )
+        return
+    for item in gone:
+        change = {"sku": item["sku"], "action": "remove", "detail": "not in the source: set to Draft"}
+        if not dry_run:
+            try:
+                sync.draft(item["shopify_product_id"])
+            except ShopifyError as error:
+                counts["failed"] += 1
+                changes.append({"sku": item["sku"], "action": "failed", "detail": str(error)[:300]})
+                continue
+            conn.execute("UPDATE sync.items SET data_hash = %s WHERE sku = %s", (REMOVED, item["sku"]))
+            conn.commit()
+        counts["removed"] += 1
+        changes.append(change)

@@ -33,6 +33,14 @@
 		}
 		reverse_proxy sync-api:3002
 	}
+	# Make posts the inventory sheet here; the endpoint checks its own key (SHEET_INGEST_KEY)
+	@sheets path /sources/sheets/*
+	handle @sheets {
+		request_body {
+			max_size 2MB
+		}
+		reverse_proxy sync-api:3002
+	}
 	handle {
 		redir * /demo
 	}

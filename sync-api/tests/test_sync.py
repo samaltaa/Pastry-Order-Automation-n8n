@@ -26,6 +26,7 @@ def test_first_run_creates_products_with_stock_and_second_run_does_nothing(db, c
         "excluded": 1,
         "failed": 1,
         "conflicts": 0,
+        "removed": 0,
     }
     assert {"sku": "A-3", "action": "failed", "detail": "Missing price"} in first["changes"]
     tres_leches = store.by_sku("A-1")
@@ -65,7 +66,7 @@ def test_a_sale_in_shopify_is_reported_as_a_conflict_and_the_pos_wins(db, client
     report = run(client)
     assert report["counts"]["conflicts"] == 1
     change = next(c for c in report["changes"] if c["sku"] == "A-1")
-    assert change["detail"] == "Shopify had 15, expected 18; POS value 10 applied"
+    assert change["detail"] == "Shopify had 15, expected 18; source value 10 applied"
     assert store.stock[item] == 10
 
 

@@ -151,5 +151,5 @@ def apply(mapping: Mapping, row: dict) -> dict:
 
 
 def is_excluded(mapping: Mapping, row: dict) -> bool:
-    key = str(row.get(mapping.key_column, "")).strip().upper()
+    key = str(row.get(mapping.key_column) or "").strip().upper()  # an empty key cell arrives as None
     return key in {excluded.key.strip().upper() for excluded in mapping.excluded_rows}

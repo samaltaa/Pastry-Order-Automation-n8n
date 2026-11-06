@@ -98,6 +98,11 @@ class FakeStore:
                 {"id": "pub-online-store", "name": "Online Store"},
             ]
             return {"publications": {"nodes": channels}}
+        if "productUpdate" in query:
+            product = self.products[variables["product"]["id"]]
+            product["status"] = variables["product"]["status"]
+            self.writes.append(f"draft {product['sku']}")
+            return {"productUpdate": {"userErrors": []}}
         if "productSet" in query:
             return self.product_set(variables["identifier"], variables["input"])
         if "inventorySetQuantities" in query:
@@ -162,6 +167,13 @@ class FakeStore:
         pass
 
 
+class Outbox(list):
+    """Records outgoing JSON POSTs (Telegram, Make) instead of sending them."""
+
+    def __call__(self, url, body):
+        self.append((url, body))
+
+
 @pytest.fixture
 def db(database_url):
     with psycopg.connect(database_url, autocommit=True) as conn:
@@ -198,16 +210,28 @@ def store():
 def make_client(database_url, store):
     """Builds a test client against the fake store. Pass a fake mapper and any setting overrides."""
 
-    def build(mapper=lambda table: None, **overrides):
+    def build(mapper=lambda table: None, post=None, **overrides):
         settings = Settings(
             database_url=database_url,
             ops_api_key="test-key",
             shopify_store="demo.myshopify.com",
             shopify_client_id="id",
             shopify_client_secret="secret",
-            demo_table="sync_test",
-            **overrides,
+            # Explicit, so nothing from a developer's .env (keys, Telegram) leaks into the tests
+            **{
+                "sync_source": "sync_test",
+                "sheet_ingest_key": None,
+                "make_sheet_webhook_url": None,
+                "sheet_url": None,
+                "telegram_bot_token": None,
+                "owner_telegram_chat_id": None,
+                "storefront_url": None,
+                "storefront_password": None,
+                **overrides,
+            },
         )
-        return TestClient(create_app(settings, shopify=store, mapper=mapper))
+        return TestClient(
+            create_app(settings, shopify=store, mapper=mapper, post=Outbox() if post is None else post)
+        )
 
     return build

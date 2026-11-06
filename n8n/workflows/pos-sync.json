@@ -50,7 +50,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ table: 'articulos', trigger: 'schedule' }) }}",
+        "jsonBody": "={{ JSON.stringify({ trigger: 'schedule' }) }}",
         "options": {
           "timeout": 300000
         }

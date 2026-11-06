@@ -169,14 +169,20 @@ Google Sheet / Excel ──(Make)──▶ sync-api /sources/sheet ──▶ Pos
 
 **Steps:**
 - [x] Make account created
-- [ ] Ingest endpoint `POST /sources/sheet`:
-  - Protected by the API key
-  - Saves each snapshot
+- [x] Ingest endpoint `POST /sources/sheets/{name}`:
+  - Protected by its own key (`SHEET_INGEST_KEY`), not the master API key
+  - Saves each snapshot as `sheets.<name>`, recreated when the headers change
   - Mapping and sync read it like a POS table
-  - Plus SKU ownership, Draft on removal, and tests
-- [ ] Caddy: expose the ingest endpoint (API key, body size limit) so Make's cloud can reach it. Locally this goes through the public tunnel.
-- [ ] Google Sheets Make scenario: watch changes → read all rows → POST to sync-api. Commit the blueprint.
-- [ ] Header drift: hold the sync, re-propose the mapping, send the Telegram approval message
+  - `SYNC_SOURCE` picks the one active source (POS table or sheet), so they never overwrite each other
+  - Rows removed from the source go to Draft; if more than half would go at once, nothing is removed
+  - `/approve` in Telegram syncs straight away
+  - 15 new tests (83 in total)
+- [x] Caddy: expose the ingest endpoint (API key, body size limit) so Make's cloud can reach it. Locally this goes through the public tunnel.
+- [x] The inventory sheet: `make/inventory.csv`, all 37 products with photos, imported into Google Sheets
+- [ ] Google Sheets Make scenario: watch changes → read all rows → POST to sync-api. Commit the blueprint. (Watch Changes works.)
+- [ ] Write-back Make scenario: custom webhook → find the row by SKU → update price and stock. Commit the blueprint.
+- [x] Header drift: hold the sync, re-propose the mapping, send the Telegram approval message (Claude is asked once per change of columns)
+- [x] Write-back: demo edits on the sheet source go to a Make webhook (`MAKE_SHEET_WEBHOOK_URL`), and the page reports whether the sheet was updated
 - [ ] Demo:
   - A shared "Catering & Holiday Menu" sheet that anyone with the link can edit, with the header row protected
   - A "Live from Google Sheets" panel on `/demo`

@@ -1,6 +1,8 @@
 """What the service can do, in one place. The HTTP API, the Telegram commands and the demo page
 all call these methods, so the rules (budget, approval checks, locking) can't drift apart."""
 
+import logging
+import time
 from collections.abc import Callable
 
 import anthropic
@@ -11,13 +13,18 @@ from psycopg_pool import ConnectionPool
 from app import mapping as mappings
 from app.config import Settings
 from app.llm import TIMEZONE, MappingFailed, log_call, spent_today
-from app.pos import UnknownTable, describe_table
 from app.shopify import ShopifyClient
-from app.sync import NoApprovedMapping, SyncAlreadyRunning, run_sync
+from app.sources import BadSheet, UnknownTable, describe_table, full_name, store_sheet
+from app.sync import NoApprovedMapping, SyncAlreadyRunning, approved_mapping, run_sync
 
 PREVIEW_ROWS = 5
+LOCK_RETRIES = 10
+INGEST_LOCK = 7_270_003
+
+log = logging.getLogger(__name__)
 
 Mapper = Callable[[dict], tuple[mappings.Mapping, dict]]
+Post = Callable[[str, dict], None]
 
 
 class Problem(Exception):
@@ -30,11 +37,15 @@ class Problem(Exception):
 
 
 class Service:
-    def __init__(self, settings: Settings, pool: ConnectionPool, shopify: ShopifyClient, mapper: Mapper):
+    def __init__(
+        self, settings: Settings, pool: ConnectionPool, shopify: ShopifyClient, mapper: Mapper, post: Post
+    ):
         self.settings = settings
         self.pool = pool
         self.shopify = shopify
         self.mapper = mapper
+        self.post = post  # JSON POST to another service (Telegram, Make); tests pass a recorder
+        self.source = full_name(settings.sync_source)
 
     def table(self, name: str) -> dict:
         with self.pool.connection() as conn:
@@ -106,7 +117,7 @@ class Service:
 
     def show(self, mapping_id: int) -> dict:
         source_table, status, mapping = self.load(mapping_id)
-        return self.report(mapping_id, status, mapping, self.table(source_table.split(".", 1)[1]))
+        return self.report(mapping_id, status, mapping, self.table(source_table))
 
     def review(self, mapping_id: int, decision: str) -> dict:
         if decision not in ("approve", "reject"):
@@ -115,7 +126,7 @@ class Service:
         if status != "proposed":
             raise Problem(409, f"Mapping {mapping_id} is already {status}")
         if decision == "approve":
-            table = self.table(source_table.split(".", 1)[1])
+            table = self.table(source_table)
             found = mappings.problems(mapping, [column["name"] for column in table["columns"]])
             if found:
                 raise Problem(422, found)
@@ -128,14 +139,91 @@ class Service:
             )
         return {"id": mapping_id, "status": new_status}
 
-    def sync(self, table: str, dry_run: bool, trigger: str) -> dict:
+    def sync(self, table: str | None, dry_run: bool, trigger: str, wait: bool = False) -> dict:
+        """One sync run of a table, or of the active source. With wait, a run already in progress
+        is waited out (up to about 30 seconds) instead of refused."""
+        for attempt in range(LOCK_RETRIES if wait else 1):
+            if attempt:
+                time.sleep(3)
+            with self.pool.connection() as conn:
+                try:
+                    return run_sync(
+                        conn,
+                        self.shopify,
+                        table or self.source,
+                        dry_run,
+                        trigger,
+                        self.settings.shopify_location_id,
+                    )
+                except NoApprovedMapping as error:
+                    raise Problem(409, str(error)) from error
+                except SyncAlreadyRunning as error:
+                    busy = error
+        raise Problem(409, str(busy))
+
+    def ingest_sheet(self, name: str, values: list[list]) -> dict:
+        """Stores a spreadsheet snapshot from Make, then syncs it if it's the active source.
+
+        If the columns don't match the approved mapping (first snapshot, or someone renamed or
+        added a column), nothing is synced: Claude proposes a mapping and the owner approves it.
+        """
+        # One sheet arrival at a time: a single edit can make Make send the sheet twice, and two
+        # arrivals deciding at once would both ask Claude and both message the owner.
+        with self.pool.connection() as guard:
+            guard.execute("SELECT pg_advisory_lock(%s)", (INGEST_LOCK,))
+            try:
+                return self._ingest_sheet(name, values)
+            finally:
+                guard.execute("SELECT pg_advisory_unlock(%s)", (INGEST_LOCK,))
+
+    def _ingest_sheet(self, name: str, values: list[list]) -> dict:
+        source = f"sheets.{name}"
         with self.pool.connection() as conn:
             try:
-                return run_sync(
-                    conn, self.shopify, table, dry_run, trigger, self.settings.shopify_location_id
-                )
-            except (NoApprovedMapping, SyncAlreadyRunning) as error:
-                raise Problem(409, str(error)) from error
+                columns = store_sheet(conn, name, values)
+            except BadSheet as error:
+                raise Problem(422, str(error)) from error
+            try:
+                _, approved = approved_mapping(conn, source)
+            except NoApprovedMapping:
+                approved = None
+
+        if source != self.source:
+            return {"status": "stored", "detail": f"Saved, not synced: the active source is {self.source}"}
+        if approved and not mappings.problems(approved, columns):
+            return {"status": "synced", "sync": self.sync(source, dry_run=False, trigger="sheet", wait=True)}
+
+        pending = self.pending_mapping(source, columns)
+        if pending:
+            return {"status": "needs_approval", "mapping_id": pending, "new_proposal": None}
+        proposal = self.propose(source)
+        proposal["first"] = approved is None
+        return {"status": "needs_approval", "mapping_id": proposal["id"], "new_proposal": proposal}
+
+    def pending_mapping(self, source: str, columns: list[str]) -> int | None:
+        """A proposal still waiting for approval that fits these columns, so Claude isn't asked again."""
+        with self.pool.connection() as conn:
+            row = conn.execute(
+                """
+                SELECT id, mapping FROM sync.mappings
+                WHERE source_table = %s AND status = 'proposed' ORDER BY id DESC LIMIT 1
+                """,
+                (source,),
+            ).fetchone()
+        if row and not mappings.problems(mappings.Mapping.model_validate(row[1]), columns):
+            return row[0]
+        return None
+
+    def notify_owner(self, text: str) -> None:
+        """Telegram message to the owner. A failed alert never fails the request that raised it."""
+        token, chat = self.settings.telegram_bot_token, self.settings.owner_telegram_chat_id
+        if not (token and chat):
+            return
+        try:
+            self.post(f"https://api.telegram.org/bot{token}/sendMessage", {"chat_id": chat, "text": text})
+        except Exception as error:
+            # Only the error type: the URL holds the bot token
+            log.warning("Telegram alert failed: %s", type(error).__name__)
 
     def runs(self, limit: int = 10) -> list[dict]:
         with self.pool.connection() as conn:

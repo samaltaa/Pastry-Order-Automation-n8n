@@ -78,7 +78,11 @@ def test_mapping_then_approve_from_telegram(db, make_client):
         assert "Skipped rows: SYS" in reply
         assert reply.splitlines()[-1] == "Reply /approve 2 or /reject 2"
 
-        assert say(client, "/approve 2") == "Mapping 2 approved."
+        approved = say(client, "/approve 2").splitlines()
+        assert approved[:2] == [
+            "Mapping 2 approved.",
+            "Sync run 1: 2 created, 0 updated, 0 stock changes, 0 unchanged.",
+        ]
         assert say(client, "/approve 2") == "Couldn't do that: Mapping 2 is already approved"
         assert say(client, "/reject") == "Which mapping? For example: /reject 3"
 

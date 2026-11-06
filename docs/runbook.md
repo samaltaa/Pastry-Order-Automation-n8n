@@ -13,7 +13,7 @@ How to put Pastry Ops on a server, and how to run it once it's there. Follow the
 
 ## 1. DNS
 
-At your registrar, create two `A` records pointing to the server's IP address:
+At your registrar, create three `A` records pointing to the server's IP address:
 
 ```
 n8n.<your-domain>     A   <server-ip>
@@ -60,6 +60,7 @@ Fill in every `replace_me` value. Generate new secrets on the server; don't reus
 | `BACKUP_S3_*` | From your R2 or B2 bucket (step 7) |
 | `SHOPIFY_STORE`, `SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET` | Same as on your laptop (see [roadmap.md](../roadmap.md), Phase 1) |
 | `SYNC_DOMAIN`, `DEMO_ENABLED`, `STOREFRONT_URL`, `STOREFRONT_PASSWORD` | `sync.<your-domain>`, `true` to open the reviewer demo, the store URL and its storefront password |
+| `SYNC_SOURCE`, `SHEET_INGEST_KEY`, `SHEET_URL`, `MAKE_SHEET_WEBHOOK_URL` | Only for the Google Sheet source (step 9) |
 | `DAILY_LLM_BUDGET_USD`, `CHAT_RATE_LIMIT_PER_MINUTE` | Defaults are $2 and 6 |
 
 ## 4. Start the stack
@@ -166,7 +167,17 @@ Send these to the bot from your own Telegram account (only `OWNER_TELEGRAM_CHAT_
 
 After that, the n8n schedule syncs every 15 minutes and messages you only when something fails or a stock conflict is found. `/runs` lists recent runs.
 
-*Check:* `https://sync.<your-domain>` opens the demo page. Change a price there, click **Sync now**, and the storefront shows the new price.
+*Check:* `https://sync.<your-domain>` opens the demo page. Change a price there, click **Sync to Shopify**, and the storefront shows the new price.
+
+### Google Sheet as the source (optional)
+
+To sync from the inventory sheet instead of the POS table:
+
+1. In `.env`, set `SYNC_SOURCE=sheets.inventory`, `SHEET_INGEST_KEY` (`openssl rand -hex 24`) and `SHEET_URL`. Then `docker compose up -d sync-api`.
+2. In the Make scenario (Google Sheets **Watch Changes** → **Make an API Call** → **Transform to JSON** → **HTTP**), set the HTTP URL to `https://sync.<your-domain>/sources/sheets/inventory` and the `x-api-key` header to the new key.
+3. Edit a cell in the sheet. Telegram asks you to approve Claude's mapping for the sheet's columns; `/approve <id>` syncs the store straight away.
+
+*Check:* change a stock count in the sheet. Within a few seconds `/runs` shows a `sheet` run with 1 stock change.
 
 ## 10. Go-live checks
 

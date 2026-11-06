@@ -105,8 +105,8 @@
 <main>
   <div class="hero">
     <div>
-      <h1>A bakery's point-of-sale, kept in sync with its Shopify store</h1>
-      <p class="lead">These products live in the bakery's register system (its POS). Change a price or a stock count
+      <h1 id="headline">A bakery's point-of-sale, kept in sync with its Shopify store</h1>
+      <p class="lead" id="lead">These products live in the bakery's register system (its POS). Change a price or a stock count
         here, the way the staff would at the counter, then sync. The change shows up in the online store a moment later.</p>
     </div>
     <div class="store-card" id="store-card">
@@ -149,9 +149,9 @@
 
   <section>
     <h2>Behind the scenes</h2>
-    <p class="muted">For the technically curious: how the register's columns were matched to Shopify, and the sync history.</p>
+    <p class="muted">For the technically curious: how the <span class="source-name">register</span>'s columns were matched to Shopify, and the sync history.</p>
     <details>
-      <summary>How the register's columns map to Shopify</summary>
+      <summary>How the <span class="source-name">register</span>'s columns map to Shopify</summary>
       <p class="small muted" style="margin-top: 10px">Claude proposed this once, from the column names and sample rows.
         A person approved it. Every sync applies it with plain, tested code.</p>
       <div class="scroll"><table id="mapping"></table></div>
@@ -272,12 +272,24 @@
     }, name)));
   }
 
+  const onSheet = () => state.source.kind === "sheet";
+  const sourceName = () => (onSheet() ? "sheet" : "register");
+
   function renderStore() {
     const { url, password } = state.storefront;
     $("store-links").replaceChildren(
       el("a", { class: "button primary", href: url, target: "_blank", rel: "noopener" }, "Open the store ↗"),
+      ...(onSheet() && state.source.url
+        ? [el("a", { class: "button", href: state.source.url, target: "_blank", rel: "noopener" }, "Open the Google Sheet ↗")]
+        : []),
       ...(password ? [el("span", { class: "small" }, "Password: ", el("code", {}, password))] : []),
     );
+    document.querySelectorAll(".source-name").forEach((node) => { node.textContent = sourceName(); });
+    if (onSheet()) {
+      $("headline").textContent = "A bakery's inventory spreadsheet, kept in sync with its Shopify store";
+      $("lead").textContent = "These products live in the bakery's Google Sheet. Edit the sheet, or change a price or stock "
+        + "count here and sync: the online store updates a moment later, and your change is written back into the sheet.";
+    }
   }
 
   function renderDetails() {
@@ -293,7 +305,7 @@
       el("thead", {}, el("tr", {}, ["When", "Started by", "Result", "Changes"].map((h) => el("th", {}, h)))),
       el("tbody", {}, state.runs.map((r) => el("tr", {},
         el("td", {}, r.started_local),
-        el("td", {}, { demo: "this page", schedule: "schedule", manual: "owner" }[r.trigger] || r.trigger),
+        el("td", {}, { demo: "this page", schedule: "schedule", manual: "owner", sheet: "sheet edit" }[r.trigger] || r.trigger),
         el("td", {}, r.status === "succeeded" ? (r.failed || r.conflicts ? "done, with notes" : "done") : r.status),
         el("td", { class: "muted" }, `${r.created} new, ${r.updated} updated, ${r.stock_updated} stock changes`)))));
   }
@@ -314,10 +326,18 @@
     const link = product && inStore(product) && storeUrl(product)
       ? el("a", { href: storeUrl(product), target: "_blank", rel: "noopener" }, "View in store ↗") : null;
     if (change.action === "failed") return el("li", {}, `${name}: not synced (${change.detail})`);
-    if (change.conflict) return el("li", {}, `${name}: the store had sold some since the last sync. The register's count was applied. `, link);
+    if (change.action === "remove") return el("li", {}, `${name}: no longer in the ${sourceName()}, so it's hidden in the store (Draft).`);
+    if (change.conflict) return el("li", {}, `${name}: the store had sold some since the last sync. The ${sourceName()}'s count was applied. `, link);
     const edit = sent.get(product?.key);
     const what = edit ? `now ${money(edit.price)}, ${edit.quantity} in stock` : { create: "added to the store", publish: "published" }[change.action] || "updated";
     return el("li", {}, `${name}: ${what}. `, link);
+  }
+
+  function sheetNote(sheet) {
+    if (!sheet) return null;
+    if (!sheet.failed.length) return el("p", {}, `✓ Written back to the Google Sheet (${sheet.written.length} row${sheet.written.length === 1 ? "" : "s"}).`);
+    return el("p", {}, `The store has the change, but the Google Sheet couldn't be updated for ${sheet.failed.join(", ")}. `
+      + "The sheet still shows the old value, and the next edit there will put it back.");
   }
 
   $("sync").addEventListener("click", async () => {
@@ -332,7 +352,8 @@
       const changed = report.changes;
       $("result").replaceChildren(el("div", { class: "result good" },
         el("b", {}, changed.length ? `Synced. ${changed.length} product${changed.length === 1 ? "" : "s"} updated in Shopify.` : "Synced. Nothing had changed."),
-        changed.length ? el("ul", {}, changed.map((c) => describe(c, sent))) : null));
+        changed.length ? el("ul", {}, changed.map((c) => describe(c, sent))) : null,
+        sheetNote(report.sheet)));
     } catch (error) {
       $("result").replaceChildren(el("div", { class: "result bad" }, el("b", {}, "Not synced: "), error.message));
     } finally {

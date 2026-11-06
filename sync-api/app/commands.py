@@ -1,8 +1,8 @@
 """Owner commands from Telegram. n8n forwards the message text and sends back the reply.
 
 /sync            run the sync now
-/mapping         ask Claude for a new mapping of the POS table
-/approve 3       approve mapping 3 (/reject 3 rejects it)
+/mapping         ask Claude for a new mapping of the active source (SYNC_SOURCE)
+/approve 3       approve mapping 3 and sync with it (/reject 3 rejects it)
 /runs            the last five sync runs
 """
 
@@ -11,20 +11,26 @@ from app.service import Problem, Service
 HELP = "Commands: /sync, /mapping, /approve <id>, /reject <id>, /runs"
 
 
-def handle(service: Service, text: str, table: str) -> str:
+def handle(service: Service, text: str) -> str:
     words = text.strip().split()
     command = words[0].lower().split("@")[0] if words else ""
     argument = words[1] if len(words) > 1 else None
     try:
         if command == "/sync":
-            return sync_reply(service.sync(table, dry_run=False, trigger="manual"))
+            return sync_reply(service.sync(None, dry_run=False, trigger="manual"))
         if command == "/mapping":
-            return proposal_reply(service.propose(table))
+            return proposal_reply(service.propose(service.source))
         if command in ("/approve", "/reject"):
             if not argument or not argument.isdigit():
                 return f"Which mapping? For example: {command} 3"
             result = service.review(int(argument), command[1:])
-            return f"Mapping {result['id']} {result['status']}."
+            reply = f"Mapping {result['id']} {result['status']}."
+            if result["status"] == "approved" and service.load(result["id"])[0] == service.source:
+                try:
+                    reply += "\n" + sync_reply(service.sync(None, dry_run=False, trigger="manual", wait=True))
+                except Problem as problem:
+                    reply += f"\nThe sync after it didn't run: {problem.detail}"
+            return reply
         if command == "/runs":
             return runs_reply(service.runs(5))
         return HELP
@@ -37,7 +43,9 @@ def sync_reply(report: dict) -> str:
     counts = report["counts"]
     lines = [
         f"Sync run {report['run_id']}: {counts['created']} created, {counts['updated']} updated, "
-        f"{counts['stock_updated']} stock changes, {counts['unchanged']} unchanged."
+        f"{counts['stock_updated']} stock changes, "
+        + (f"{counts['removed']} set to draft, " if counts["removed"] else "")
+        + f"{counts['unchanged']} unchanged."
     ]
     if counts["failed"] or counts["conflicts"]:
         lines.append(f"{counts['failed']} failed, {counts['conflicts']} stock conflicts:")

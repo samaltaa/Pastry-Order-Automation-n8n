@@ -13,8 +13,17 @@ class Settings(BaseSettings):
     shopify_location_id: str | None = None
     anthropic_model_strong: str = "claude-sonnet-5-5"
     daily_llm_budget_usd: float = 2.0
-    # The POS table synced by the n8n schedule and the Telegram commands, and shown on the demo page.
-    demo_table: str = "articulos"
+    # Where the inventory lives: a POS table ("articulos") or a spreadsheet ("sheets.inventory").
+    # The n8n schedule, the Telegram commands and the demo page all use it. Only one source is synced
+    # at a time, so two systems never overwrite each other's stock.
+    sync_source: str = "articulos"
     demo_enabled: bool = False
     storefront_url: str | None = None
     storefront_password: str | None = None
+    # Spreadsheet pipeline (Make). Without SHEET_INGEST_KEY the ingest endpoint is off.
+    sheet_ingest_key: str | None = None
+    make_sheet_webhook_url: str | None = None
+    sheet_url: str | None = None
+    # Owner alerts when a sheet's columns change and a new mapping needs approval
+    telegram_bot_token: str | None = None
+    owner_telegram_chat_id: str | None = None
