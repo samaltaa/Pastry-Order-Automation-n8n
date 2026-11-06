@@ -11,7 +11,6 @@ with the store.
 
 import csv
 import io
-import logging
 import threading
 import time
 from collections import defaultdict, deque
@@ -28,8 +27,6 @@ from app.mapping import apply, is_excluded
 from app.service import Problem, Service
 from app.sources import SAMPLE_ROWS, full_name, qualify, read_rows
 from app.sync import NoApprovedMapping, approved_mapping, handle_for
-
-log = logging.getLogger(__name__)
 
 PAGE = Path(__file__).with_name("demo.html")
 MAX_CSV_CHARS = 200_000
@@ -204,15 +201,11 @@ def demo_router(settings: Settings) -> APIRouter:
         """Sends each edited row to Make, which finds it by SKU in the Google Sheet and updates it."""
         if not (on_sheet and saved and settings.make_sheet_webhook_url):
             return None
-        written, failed = [], []
-        for key, cells in saved.items():
-            try:
-                service(request).post(settings.make_sheet_webhook_url, {"sku": key, **cells})
-                written.append(key)
-            except Exception as error:
-                log.warning("Writing %s to the sheet failed: %s", key, error)
-                failed.append(key)
-        return {"written": written, "failed": failed}
+        results = {key: service(request).write_to_sheet(key, cells) for key, cells in saved.items()}
+        return {
+            "written": [key for key, ok in results.items() if ok],
+            "failed": [key for key, ok in results.items() if not ok],
+        }
 
     @router.post("/api/sync")
     def sync_now(request: Request, body: SyncNow | None = None):

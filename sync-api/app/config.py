@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     sheet_ingest_key: str | None = None
     make_sheet_webhook_url: str | None = None
     sheet_url: str | None = None
+    # Where Shopify sends stock changes (online sales, cancellations, admin edits), e.g.
+    # https://sync.<domain>/webhooks/shopify. Registered with Shopify at startup.
+    shopify_webhook_url: str | None = None
     # Owner alerts when a sheet's columns change and a new mapping needs approval
     telegram_bot_token: str | None = None
     owner_telegram_chat_id: str | None = None

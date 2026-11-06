@@ -26,7 +26,8 @@
 # the rest of sync-api (mappings, sync, commands) stays internal to n8n.
 {$SYNC_DOMAIN} {
 	import common
-	@public path /demo /demo/* /health
+	# /webhooks/shopify checks Shopify's signature itself
+	@public path /demo /demo/* /health /webhooks/shopify
 	handle @public {
 		request_body {
 			max_size 300KB

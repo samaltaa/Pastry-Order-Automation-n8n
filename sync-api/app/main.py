@@ -1,10 +1,14 @@
+import base64
+import hashlib
 import hmac
+import json
+import logging
 from contextlib import asynccontextmanager
 from typing import Literal
 
 import anthropic
 import httpx
-from fastapi import Depends, FastAPI, Header, HTTPException, Path, Request
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Path, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from psycopg_pool import ConnectionPool
 from pydantic import BaseModel, ConfigDict, Field
@@ -16,6 +20,8 @@ from app.llm import propose_mapping
 from app.service import Mapper, Post, Problem, Service
 from app.shopify import ShopifyClient
 from app.sources import MAX_SHEET_ROWS
+
+log = logging.getLogger(__name__)
 
 SHOP_QUERY = """
 {
@@ -46,8 +52,26 @@ class SheetSnapshot(BaseModel):
     values: list[list[str | int | float | bool | None]] = Field(max_length=MAX_SHEET_ROWS + 1)
 
 
+class WebhookTarget(BaseModel):
+    url: str = Field(pattern=r"^https://")
+
+
+def shopify_signed(body: bytes, signature: str, secret: str) -> bool:
+    """Shopify signs each webhook: base64 HMAC-SHA256 of the raw body, keyed with the app's client secret."""
+    expected = base64.b64encode(hmac.new(secret.encode(), body, hashlib.sha256).digest()).decode()
+    return hmac.compare_digest(expected, signature)
+
+
 def key_matches(given: str, expected: str | None) -> bool:
     return bool(expected) and hmac.compare_digest(given.encode(), expected.encode())
+
+
+def write_back(service: Service, key: str, cells: dict) -> None:
+    if not service.write_to_sheet(key, cells):
+        service.notify_owner(
+            f"Shopify's stock for {key} is now {cells['quantity']}, but the Google Sheet couldn't be "
+            "updated. Change it in the sheet by hand, or the next edit there will put the old count back."
+        )
 
 
 def create_app(
@@ -82,6 +106,11 @@ def create_app(
             mapper or (lambda table: propose_mapping(claude, settings.anthropic_model_strong, table)),
             post_json if post is None else post,
         )
+        if settings.shopify_webhook_url:
+            try:
+                app.state.service.register_stock_webhook(settings.shopify_webhook_url)
+            except Exception as error:  # Shopify being down mustn't stop the service starting
+                log.warning("Registering the Shopify stock webhook failed: %s", error)
         yield
         if claude:
             claude.close()
@@ -142,6 +171,38 @@ def create_app(
     def command(body: CommandRequest, request: Request):
         """Owner commands from Telegram, forwarded by n8n."""
         return {"reply": commands.handle(service(request), body.text)}
+
+    @app.post("/shopify/webhooks", dependencies=[Depends(require_api_key)])
+    def register_webhooks(body: WebhookTarget, request: Request):
+        """Points Shopify's stock-change webhook at {url}. Run after deploying to a new address."""
+        return service(request).register_stock_webhook(body.url)
+
+    @app.post("/webhooks/shopify")
+    async def shopify_webhook(
+        request: Request,
+        background: BackgroundTasks,
+        x_shopify_hmac_sha256: str = Header(default=""),
+        x_shopify_topic: str = Header(default=""),
+        x_shopify_webhook_id: str = Header(default=""),
+    ):
+        """Stock changed in Shopify (a sale, a cancellation, an admin edit). Shopify waits at most five
+        seconds, so the answer goes back at once and the sheet is written in the background."""
+        body = await request.body()
+        if not shopify_signed(body, x_shopify_hmac_sha256, settings.shopify_client_secret):
+            raise HTTPException(status_code=401, detail="Invalid signature")
+        svc = service(request)
+        if x_shopify_topic != "inventory_levels/update" or not x_shopify_webhook_id:
+            return {"ok": True, "handled": False}
+        if not svc.first_delivery(x_shopify_webhook_id, x_shopify_topic):
+            return {"ok": True, "handled": False, "duplicate": True}
+        payload = json.loads(body)
+        if payload.get("available") is None:
+            return {"ok": True, "handled": False}
+        item = f"gid://shopify/InventoryItem/{payload['inventory_item_id']}"
+        write = svc.shopify_stock_changed(item, int(payload["available"]))
+        if write:
+            background.add_task(write_back, svc, write["key"], write["cells"])
+        return {"ok": True, "handled": True}
 
     if settings.sheet_ingest_key:
 

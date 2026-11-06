@@ -8,6 +8,7 @@ from psycopg.types.json import Jsonb
 
 from app.config import Settings
 from app.main import create_app
+from app.mapping import Mapping
 
 MIGRATIONS = Path(__file__).resolve().parents[2] / "db" / "migrations"
 
@@ -84,6 +85,7 @@ class FakeStore:
         self.stock: dict[str, int] = {}
         self.writes: list[str] = []
         self.published: set[str] = set()
+        self.webhooks: dict[str, dict] = {}
 
     def graphql(self, query, variables=None):
         if "locations" in query:
@@ -98,6 +100,16 @@ class FakeStore:
                 {"id": "pub-online-store", "name": "Online Store"},
             ]
             return {"publications": {"nodes": channels}}
+        if "webhookSubscriptions(" in query:
+            return {"webhookSubscriptions": {"nodes": list(self.webhooks.values())}}
+        if "webhookSubscriptionCreate" in query:
+            hook = {"id": f"wh{len(self.webhooks) + 1}", "uri": variables["webhook"]["uri"]}
+            self.webhooks[hook["id"]] = hook
+            return {"webhookSubscriptionCreate": {"webhookSubscription": hook, "userErrors": []}}
+        if "webhookSubscriptionUpdate" in query:
+            self.webhooks[variables["id"]]["uri"] = variables["webhook"]["uri"]
+            hook = self.webhooks[variables["id"]]
+            return {"webhookSubscriptionUpdate": {"webhookSubscription": hook, "userErrors": []}}
         if "productUpdate" in query:
             product = self.products[variables["product"]["id"]]
             product["status"] = variables["product"]["status"]
@@ -227,6 +239,7 @@ def make_client(database_url, store):
                 "owner_telegram_chat_id": None,
                 "storefront_url": None,
                 "storefront_password": None,
+                "shopify_webhook_url": None,
                 **overrides,
             },
         )
@@ -235,3 +248,94 @@ def make_client(database_url, store):
         )
 
     return build
+
+
+# A Google Sheet as Make sends it, and the active-source client that receives it
+SHEET_CALL = {"model": "claude-test", "input_tokens": 1000, "output_tokens": 200, "latency_ms": 900}
+SHEET = [
+    ["Item #", "Product", "Price (USD)", "Qty on hand", "Show online?"],
+    ["CAT-1", "Mini Pastelitos Tray", "$38.00", "6", "Yes"],
+    ["CAT-2", "Coquito 750ml", "22", "10", "No"],
+    ["CAT-3", "Fruit Cake", "$42.50", "5"],  # Google leaves out trailing empty cells
+    [],
+    ["", "TOTAL", "", "21"],
+]
+SHEET_MAPPING = Mapping.model_validate(
+    {
+        "key_column": "Item #",
+        "fields": [
+            {
+                "source_column": "Item #",
+                "target": "sku",
+                "transform": "trim_upper",
+                "confidence": 1,
+                "reason": "-",
+            },
+            {
+                "source_column": "Product",
+                "target": "title",
+                "transform": "trim",
+                "confidence": 1,
+                "reason": "-",
+            },
+            {
+                "source_column": "Price (USD)",
+                "target": "price",
+                "transform": "money",
+                "confidence": 1,
+                "reason": "-",
+            },
+            {
+                "source_column": "Qty on hand",
+                "target": "quantity",
+                "transform": "integer",
+                "confidence": 1,
+                "reason": "-",
+            },
+            {
+                "source_column": "Show online?",
+                "target": "status",
+                "transform": "active_status",
+                "confidence": 1,
+                "reason": "-",
+            },
+        ],
+        "excluded_rows": [{"key": "", "reason": "Totals row"}],
+    }
+)
+
+
+@pytest.fixture
+def sheets(db):
+    db.execute("DROP SCHEMA IF EXISTS sheets CASCADE")
+    db.execute("CREATE SCHEMA sheets")
+    return db
+
+
+@pytest.fixture
+def calls():
+    return []
+
+
+@pytest.fixture
+def sheet_client(sheets, make_client, calls):
+    """The inventory sheet is the active source, with Telegram and a Make webhook configured."""
+    outbox = Outbox()
+
+    def mapper(table):
+        calls.append(table)
+        return SHEET_MAPPING, SHEET_CALL
+
+    client = make_client(
+        mapper=mapper,
+        post=outbox,
+        sync_source="sheets.inventory",
+        sheet_ingest_key="sheet-key",
+        telegram_bot_token="bot-token",
+        owner_telegram_chat_id="42",
+        make_sheet_webhook_url="https://hook.make.test/abc",
+        demo_enabled=True,
+    )
+    with client:
+        client.outbox = outbox
+        yield client

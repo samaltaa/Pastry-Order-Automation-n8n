@@ -1,101 +1,12 @@
 import time
 
 import pytest
-from conftest import Outbox
+from conftest import SHEET
 
-from app.mapping import Mapping
 from app.sources import BadSheet, read_rows, store_sheet
 
 KEY = {"x-api-key": "test-key"}
 SHEET_KEY = {"x-api-key": "sheet-key"}
-CALL = {"model": "claude-test", "input_tokens": 1000, "output_tokens": 200, "latency_ms": 900}
-SHEET = [
-    ["Item #", "Product", "Price (USD)", "Qty on hand", "Show online?"],
-    ["CAT-1", "Mini Pastelitos Tray", "$38.00", "6", "Yes"],
-    ["CAT-2", "Coquito 750ml", "22", "10", "No"],
-    ["CAT-3", "Fruit Cake", "$42.50", "5"],  # Google leaves out trailing empty cells
-    [],
-    ["", "TOTAL", "", "21"],
-]
-SHEET_MAPPING = Mapping.model_validate(
-    {
-        "key_column": "Item #",
-        "fields": [
-            {
-                "source_column": "Item #",
-                "target": "sku",
-                "transform": "trim_upper",
-                "confidence": 1,
-                "reason": "-",
-            },
-            {
-                "source_column": "Product",
-                "target": "title",
-                "transform": "trim",
-                "confidence": 1,
-                "reason": "-",
-            },
-            {
-                "source_column": "Price (USD)",
-                "target": "price",
-                "transform": "money",
-                "confidence": 1,
-                "reason": "-",
-            },
-            {
-                "source_column": "Qty on hand",
-                "target": "quantity",
-                "transform": "integer",
-                "confidence": 1,
-                "reason": "-",
-            },
-            {
-                "source_column": "Show online?",
-                "target": "status",
-                "transform": "active_status",
-                "confidence": 1,
-                "reason": "-",
-            },
-        ],
-        "excluded_rows": [{"key": "", "reason": "Totals row"}],
-    }
-)
-
-
-@pytest.fixture
-def sheets(db):
-    db.execute("DROP SCHEMA IF EXISTS sheets CASCADE")
-    db.execute("CREATE SCHEMA sheets")
-    return db
-
-
-@pytest.fixture
-def calls():
-    return []
-
-
-@pytest.fixture
-def sheet_client(sheets, make_client, calls):
-    """The inventory sheet is the active source, with Telegram and a Make webhook configured."""
-    outbox = Outbox()
-
-    def mapper(table):
-        calls.append(table)
-        return SHEET_MAPPING, CALL
-
-    client = make_client(
-        mapper=mapper,
-        post=outbox,
-        sync_source="sheets.inventory",
-        sheet_ingest_key="sheet-key",
-        telegram_bot_token="bot-token",
-        owner_telegram_chat_id="42",
-        make_sheet_webhook_url="https://hook.make.test/abc",
-        demo_enabled=True,
-    )
-    with client:
-        client.outbox = outbox
-        yield client
 
 
 def send(client, values=SHEET):

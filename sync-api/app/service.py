@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable
 
 import anthropic
+from psycopg import sql
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
@@ -14,10 +15,35 @@ from app import mapping as mappings
 from app.config import Settings
 from app.llm import TIMEZONE, MappingFailed, log_call, spent_today
 from app.shopify import ShopifyClient
-from app.sources import BadSheet, UnknownTable, describe_table, full_name, store_sheet
+from app.sources import BadSheet, UnknownTable, describe_table, full_name, qualify, store_sheet
 from app.sync import NoApprovedMapping, SyncAlreadyRunning, approved_mapping, run_sync
 
 PREVIEW_ROWS = 5
+STOCK_WEBHOOK_TOPIC = "INVENTORY_LEVELS_UPDATE"
+
+FIND_WEBHOOKS = """
+query Webhooks($topics: [WebhookSubscriptionTopic!]) {
+  webhookSubscriptions(first: 10, topics: $topics) { nodes { id uri } }
+}
+"""
+
+CREATE_WEBHOOK = """
+mutation CreateWebhook($topic: WebhookSubscriptionTopic!, $webhook: WebhookSubscriptionInput!) {
+  webhookSubscriptionCreate(topic: $topic, webhookSubscription: $webhook) {
+    webhookSubscription { id uri }
+    userErrors { field message }
+  }
+}
+"""
+
+UPDATE_WEBHOOK = """
+mutation UpdateWebhook($id: ID!, $webhook: WebhookSubscriptionInput!) {
+  webhookSubscriptionUpdate(id: $id, webhookSubscription: $webhook) {
+    webhookSubscription { id uri }
+    userErrors { field message }
+  }
+}
+"""
 LOCK_RETRIES = 10
 INGEST_LOCK = 7_270_003
 
@@ -46,6 +72,7 @@ class Service:
         self.mapper = mapper
         self.post = post  # JSON POST to another service (Telegram, Make); tests pass a recorder
         self.source = full_name(settings.sync_source)
+        self.on_sheet = qualify(self.source)[0] == "sheets"
 
     def table(self, name: str) -> dict:
         with self.pool.connection() as conn:
@@ -213,6 +240,79 @@ class Service:
         if row and not mappings.problems(mappings.Mapping.model_validate(row[1]), columns):
             return row[0]
         return None
+
+    def write_to_sheet(self, key: str, cells: dict) -> bool:
+        """Sends one row's price and stock to Make, which finds the row by SKU and updates it."""
+        try:
+            self.post(self.settings.make_sheet_webhook_url, {"sku": key, **cells})
+            return True
+        except Exception as error:
+            log.warning("Writing %s to the sheet failed: %s", key, error)
+            return False
+
+    def first_delivery(self, delivery_id: str, topic: str) -> bool:
+        """False when this Shopify webhook delivery was already handled (Shopify retries)."""
+        with self.pool.connection() as conn:
+            return (
+                conn.execute(
+                    "INSERT INTO sync.webhook_deliveries (id, topic) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (delivery_id, topic),
+                ).rowcount
+                == 1
+            )
+
+    def shopify_stock_changed(self, inventory_item_id: str, available: int) -> dict | None:
+        """Shopify's stock moved: an online sale, a cancellation, or staff editing it in the admin.
+
+        The source takes Shopify's number, and so does sync.items, so the next sync neither reports
+        a conflict nor puts the old count back. Shopify also sends this after the sync's own stock
+        writes; those already match sync.items and are ignored. Returns the row to write back to a
+        sheet source, or None.
+        """
+        with self.pool.connection() as conn:
+            item = conn.execute(
+                "SELECT sku, source_key, last_quantity FROM sync.items WHERE shopify_inventory_item_id = %s",
+                (inventory_item_id,),
+            ).fetchone()
+            if not item or item[2] == available:
+                return None
+            sku, source_key, _ = item
+            try:
+                _, mapping = approved_mapping(conn, self.source)
+            except NoApprovedMapping:
+                return None
+            columns = {field.target: field.source_column for field in mapping.fields}
+            if "quantity" not in columns:
+                return None
+            row = conn.execute(
+                sql.SQL("UPDATE {} SET {} = %s WHERE trim({}) = %s RETURNING {}").format(
+                    sql.Identifier(*qualify(self.source)),
+                    sql.Identifier(columns["quantity"]),
+                    sql.Identifier(mapping.key_column),
+                    sql.Identifier(columns["price"]),
+                ),
+                (str(available), source_key),
+            ).fetchone()
+            conn.execute("UPDATE sync.items SET last_quantity = %s WHERE sku = %s", (available, sku))
+        log.info("Shopify stock for %s is now %s; source updated", sku, available)
+        if row is None or not (self.on_sheet and self.settings.make_sheet_webhook_url):
+            return None
+        return {"key": source_key, "cells": {"price": row[0], "quantity": str(available)}}
+
+    def register_stock_webhook(self, url: str) -> dict:
+        """Points Shopify's stock-change webhook at this service. Run again whenever the address changes."""
+        found = self.shopify.graphql(FIND_WEBHOOKS, {"topics": [STOCK_WEBHOOK_TOPIC]})
+        existing = found["webhookSubscriptions"]["nodes"]
+        webhook = {"uri": url, "format": "JSON"}
+        if existing:
+            result = self.shopify.graphql(UPDATE_WEBHOOK, {"id": existing[0]["id"], "webhook": webhook})
+            result = result["webhookSubscriptionUpdate"]
+        else:
+            result = self.shopify.graphql(CREATE_WEBHOOK, {"topic": STOCK_WEBHOOK_TOPIC, "webhook": webhook})
+            result = result["webhookSubscriptionCreate"]
+        if result["userErrors"]:
+            raise Problem(502, result["userErrors"])
+        return result["webhookSubscription"]
 
     def notify_owner(self, text: str) -> None:
         """Telegram message to the owner. A failed alert never fails the request that raised it."""

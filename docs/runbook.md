@@ -61,6 +61,7 @@ Fill in every `replace_me` value. Generate new secrets on the server; don't reus
 | `SHOPIFY_STORE`, `SHOPIFY_CLIENT_ID`, `SHOPIFY_CLIENT_SECRET` | Same as on your laptop (see [roadmap.md](../roadmap.md), Phase 1) |
 | `SYNC_DOMAIN`, `DEMO_ENABLED`, `STOREFRONT_URL`, `STOREFRONT_PASSWORD` | `sync.<your-domain>`, `true` to open the reviewer demo, the store URL and its storefront password |
 | `SYNC_SOURCE`, `SHEET_INGEST_KEY`, `SHEET_URL`, `MAKE_SHEET_WEBHOOK_URL` | Only for the Google Sheet source (step 9) |
+| `SHOPIFY_WEBHOOK_URL` | `https://sync.<your-domain>/webhooks/shopify`. Online sales then lower the stock in the source. |
 | `DAILY_LLM_BUDGET_USD`, `CHAT_RATE_LIMIT_PER_MINUTE` | Defaults are $2 and 6 |
 
 ## 4. Start the stack
@@ -177,7 +178,9 @@ To sync from the inventory sheet instead of the POS table:
 2. In the Make scenario (Google Sheets **Watch Changes** → **Make an API Call** → **Transform to JSON** → **HTTP**), set the HTTP URL to `https://sync.<your-domain>/sources/sheets/inventory` and the `x-api-key` header to the new key.
 3. Edit a cell in the sheet. Telegram asks you to approve Claude's mapping for the sheet's columns; `/approve <id>` syncs the store straight away.
 
-*Check:* change a stock count in the sheet. Within a few seconds `/runs` shows a `sheet` run with 1 stock change.
+4. For demo edits and online sales to reach the sheet, set `MAKE_SHEET_WEBHOOK_URL` to the custom webhook of the second Make scenario (**Webhooks** → **Search Rows** by `Item #` → **Update a Row**: Price and Qty on hand from the webhook's `price` and `quantity`).
+
+*Check:* change a stock count in the sheet. Within a few seconds `/runs` shows a `sheet` run with 1 stock change. Then place a test order in the store (Settings → Payments → Test payment gateway, card number `1`): the sheet's stock for that product drops within a few seconds.
 
 ## 10. Go-live checks
 

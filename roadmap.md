@@ -180,7 +180,9 @@ Google Sheet / Excel ──(Make)──▶ sync-api /sources/sheet ──▶ Pos
 - [x] Caddy: expose the ingest endpoint (API key, body size limit) so Make's cloud can reach it. Locally this goes through the public tunnel.
 - [x] The inventory sheet: `make/inventory.csv`, all 37 products with photos, imported into Google Sheets
 - [ ] Google Sheets Make scenario: watch changes → read all rows → POST to sync-api. Commit the blueprint. (Watch Changes works.)
-- [ ] Write-back Make scenario: custom webhook → find the row by SKU → update price and stock. Commit the blueprint.
+- [x] Write-back Make scenario: custom webhook → find the row by SKU → update price and stock
+- [x] Online sales reach the sheet: Shopify's `inventory_levels/update` webhook (signed, deduplicated, answered within Shopify's 5 seconds) → sync-api records the new count → the write-back scenario updates the sheet. No customer data, so no extra Shopify permissions. The sync's own stock writes are recognised and ignored.
+- [ ] Export both Make scenarios' blueprints into `make/`
 - [x] Header drift: hold the sync, re-propose the mapping, send the Telegram approval message (Claude is asked once per change of columns)
 - [x] Write-back: demo edits on the sheet source go to a Make webhook (`MAKE_SHEET_WEBHOOK_URL`), and the page reports whether the sheet was updated
 - [ ] Demo:
