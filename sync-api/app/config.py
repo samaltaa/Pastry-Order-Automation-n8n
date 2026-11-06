@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     shopify_api_version: str = "2026-10"
     shopify_location_id: str | None = None
     anthropic_model_strong: str = "claude-sonnet-5-5"
+    anthropic_model_fast: str = "claude-haiku-5-5"
+    # optimized: profile the table, Haiku first, Sonnet only when Haiku's answer fails the checks.
+    # baseline: Sonnet on raw rows. Compare them with: python -m evals.run_mapping --compare
+    mapping_pipeline: str = "optimized"
     daily_llm_budget_usd: float = 2.0
     # Where the inventory lives: a POS table ("articulos") or a spreadsheet ("sheets.inventory").
     # The n8n schedule, the Telegram commands and the demo page all use it. Only one source is synced

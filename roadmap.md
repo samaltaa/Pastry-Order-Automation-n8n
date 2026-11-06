@@ -186,6 +186,11 @@ Google Sheet / Excel ──(Make)──▶ sync-api /sources/sheet ──▶ Pos
 - [x] Approval checks that the transform fits the field (status needs active_status or inactive_status, price needs money, ...). The sync re-checks the approved mapping before every run. Found when a yes_no status was approved and Shopify rejected 35 updates.
 - [x] Deterministic approval (`app/gate.py`): Claude proposes, six checks decide. Structure, confidence ≥ 80%, every row reads cleanly, unique SKUs, same meaning for columns that kept their name, and at most 10% of products changed in Shopify. All pass → approved automatically and synced; any fails → the sync pauses for the owner, and the demo page shows the failed checks. Tested live: renaming "Qty on hand" to "Stock" was approved automatically (0 products changed); renaming "Show online?" to "Discontinued?" was held (it would have hidden 37 of 37 products).
 - [x] Typo guard on every change (`app/guard.py`): a price outside $0.25-$500 or moving more than 50% at once, or stock above 9,999 or rising by more than 500 at once, is held. The store keeps its old value, the demo page lists it under "Held for review", and Telegram tells the owner once. `/held` lists holds, `/release <sku>` applies one, and fixing the value clears it. Stock going down always passes (sales).
+- [x] Cost-optimized mapping pipeline (`app/llm.py`), measured with `python -m evals.run_mapping --compare` (two runs):
+  - Preprocessing: a per-column profile plus 12 sample rows and every unusual row as CSV, instead of 50 raw JSON rows (the pastry layout's input drops from 10,656 to 4,304 tokens).
+  - Routing: Haiku first; Sonnet only when Haiku's mapping fails the structure or confidence checks (2 of 4 layouts escalate).
+  - Caching: the fixed instructions (1,867 tokens) are read from the prompt cache at 0.1× on back-to-back calls.
+  - Result: 62–68% cheaper ($0.070 → $0.023 for the 4 layouts), accuracy 97.1% → 100%, about 50% slower when it escalates.
 - [ ] Export both Make scenarios' blueprints into `make/`
 - [x] Header drift: hold the sync, re-propose the mapping, send the Telegram approval message (Claude is asked once per change of columns)
 - [x] Write-back: demo edits on the sheet source go to a Make webhook (`MAKE_SHEET_WEBHOOK_URL`), and the page reports whether the sheet was updated

@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapping Cost Metrics</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10); --good: #006300;
+    --base: #2a78d6; --opt: #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --good: #0ca30c;
+      --base: #3987e5; --opt: #d95926;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --good: #0ca30c;
+    --base: #3987e5; --opt: #d95926;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 22px; margin: 0; }
+  h2 { font-size: 15px; margin: 0; }
+  p { margin: 0; }
+  .sub { color: var(--ink-2); margin-top: 4px; max-width: 75ch; }
+  .muted { color: var(--muted); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 24px 0; }
+  @media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 14px 16px; }
+  .tile .label { color: var(--ink-2); font-size: 13px; }
+  .tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; }
+  .tile .detail { color: var(--muted); font-size: 12px; }
+  .tile .good { color: var(--good); }
+
+  .card { background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 16px; margin-top: 16px; }
+  .card-head { display: flex; gap: 8px 16px; flex-wrap: wrap; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+  .card-head p { color: var(--ink-2); font-size: 13px; }
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+  .grid2 .card { margin-top: 0; }
+  .multiples { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  @media (max-width: 760px) { .multiples { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .multiple h3 { font-size: 13px; font-weight: 600; margin: 0 0 2px; }
+  .multiple .saving { font-size: 12px; color: var(--good); margin: 0; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  svg text { font: 12px system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--muted); }
+  svg text.value { fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+  svg rect.bar { cursor: default; }
+  svg rect.hit { fill: transparent; }
+
+  .controls { display: flex; gap: 12px 20px; flex-wrap: wrap; align-items: center; margin: 4px 0 12px; font-size: 13px; color: var(--ink-2); }
+  .controls label { display: inline-flex; gap: 8px; align-items: center; }
+  .controls input, .controls select { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--axis); background: var(--surface); color: var(--ink); }
+  .controls input { width: 72px; font-variant-numeric: tabular-nums; }
+
+  .tooltip { position: fixed; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--ring);
+             border-radius: 6px; padding: 8px 10px; font-size: 12px; box-shadow: 0 4px 16px rgb(0 0 0 / 16%); z-index: 10; max-width: 240px; }
+  .tooltip[hidden] { display: none; }
+  .tooltip b { display: block; margin-bottom: 2px; }
+  .tooltip .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; font-variant-numeric: tabular-nums; }
+  .tooltip i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; margin-right: 4px; }
+
+  details { margin-top: 16px; background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; }
+  summary { cursor: pointer; font-weight: 600; padding: 12px 16px; }
+  .tablewrap { overflow-x: auto; padding: 0 16px 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+  th { color: var(--ink-2); font-weight: 600; }
+  td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .notes { margin-top: 16px; color: var(--ink-2); font-size: 13px; }
+  .notes li { margin: 4px 0; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Column mapping: AI cost before and after optimization</h1>
+  <p class="sub">Measured with the mapping eval (<code>python -m evals.run_mapping --compare</code>): 4 real POS layouts with a known answer key,
+    2 runs per pipeline, November 6, 2026. <b>Baseline:</b> Claude Sonnet 5.5 reads up to 50 raw rows as JSON.
+    <b>Optimized:</b> code profiles the table first, Claude Haiku 5.5 maps it, and Sonnet takes over only when Haiku's answer fails the checks; the fixed instructions are prompt-cached.</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-head"><h2>Cost per mapping, by layout</h2><div class="legend" aria-hidden="true"></div></div>
+      <p class="muted small" style="font-size:13px">US dollars per call, average of 2 runs. Lower is better.</p>
+      <div id="chart-cost"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Quality, by layout</h2><div class="legend" aria-hidden="true"></div></div>
+      <p class="muted" style="font-size:13px">Share of answer-key checks passed (column targets, transforms, key column, excluded rows, approval).</p>
+      <div id="chart-quality"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Monthly cost at scale</h2><div class="legend" aria-hidden="true"></div></div>
+    <div class="controls">
+      <label>Mappings per store per month <input id="calls" type="number" min="1" max="1000" value="30" aria-label="Mappings per store per month"></label>
+      <span class="muted">Each panel has its own scale; compare the two bars within a panel.</span>
+    </div>
+    <div class="multiples" id="chart-scale"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Long-term cost</h2><div class="legend" aria-hidden="true"></div></div>
+    <div class="controls">
+      <label>Stores <select id="stores" aria-label="Stores">
+        <option value="10">10</option><option value="100">100</option><option value="1000" selected>1,000</option><option value="10000">10,000</option>
+      </select></label>
+      <span class="muted" id="long-note"></span>
+    </div>
+    <div id="chart-long"></div>
+  </div>
+
+  <details>
+    <summary>All numbers as a table</summary>
+    <div class="tablewrap" id="tables"></div>
+  </details>
+
+  <ul class="notes">
+    <li><b>Where the saving comes from:</b> when Haiku handles a layout on its own, a mapping costs about $0.001 instead of about $0.03.
+      Two of the four layouts were escalated to Sonnet in both runs; those cost about $0.01, still below the baseline, but take two calls.</li>
+    <li><b>Speed:</b> the optimized pipeline is about 50% slower per mapping when it escalates. Mappings run once per new column layout or CSV preview, so this is a good trade here; it would not be for a chat reply.</li>
+    <li><b>Caching:</b> 1,867 of the 2,855 input tokens per call are the fixed instructions, read from the prompt cache at 0.1× the price when calls come within 5 minutes. A single mapping a day gets no cache benefit.</li>
+    <li><b>Projections</b> multiply the measured cost per mapping by the volume you set, assuming the same mix of layouts as the eval. Larger tables than the eval's (thousands of rows) save more, because the profile stays small while raw rows don't.</li>
+  </ul>
+</main>
+
+<div class="tooltip" id="tooltip" hidden role="status"></div>
+
+<script>
+  // Measured: evals/run_mapping.py --compare, 2 runs each (Nov 6, 2026)
+  const RUNS = {
+    baseline: { cost: [0.0704, 0.0708], ms: [22251, 20969], passed: 68, total: 70 },
+    optimized: { cost: [0.0265, 0.0225], ms: [32767, 32728], passed: 70, total: 70 },
+  };
+  const LAYOUTS = [
+    { name: "Pastry shop", full: "Pastry shop (Spanish POS, 38 rows)", base: [0.0293, 0.0296], opt: [0.0012, 0.0010], baseQ: [20, 20], optQ: [20, 20], route: "Haiku" },
+    { name: "Square export", full: "Square-style export (English)", base: [0.0116, 0.0117], opt: [0.0007, 0.0006], baseQ: [15, 15], optQ: [15, 15], route: "Haiku" },
+    { name: "Hardware store", full: "Hardware store (two price lists)", base: [0.0137, 0.0136], opt: [0.0151, 0.0108], baseQ: [17, 17], optQ: [17, 17], route: "Haiku → Sonnet" },
+    { name: "Legacy file", full: "Legacy fixed-width (inverted flag)", base: [0.0159, 0.0160], opt: [0.0096, 0.0100], baseQ: [16, 18], optQ: [18, 18], route: "Haiku → Sonnet" },
+  ];
+  const SERIES = [
+    { key: "base", label: "Baseline", color: "var(--base)" },
+    { key: "opt", label: "Optimized", color: "var(--opt)" },
+  ];
+  const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const perMapping = {
+    base: avg(RUNS.baseline.cost) / LAYOUTS.length,
+    opt: avg(RUNS.optimized.cost) / LAYOUTS.length,
+  };
+  const msPerMapping = { base: avg(RUNS.baseline.ms) / LAYOUTS.length, opt: avg(RUNS.optimized.ms) / LAYOUTS.length };
+  const SCALES = [10, 100, 1000, 10000];
+  const MONTHS = [3, 6, 12, 24, 36];
+
+  const money = (v) => v === 0 ? "$0" : v < 0.1 ? `$${v.toFixed(4)}` : v < 100 ? `$${v.toFixed(2)}` : `$${Math.round(v).toLocaleString("en-US")}`;
+  const pct = (v) => `${(v * 100).toFixed(1)}%`;
+  const NS = "http://www.w3.org/2000/svg";
+  const $ = (id) => document.getElementById(id);
+
+  function svgEl(tag, attrs = {}, text) {
+    const node = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function htmlEl(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) { if (k === "class") node.className = v; else node[k] = v; }
+    for (const c of children.flat()) if (c != null) node.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    return node;
+  }
+
+  // Rounded data-end, square at the baseline (4px radius)
+  function columnPath(x, y, w, h) {
+    const r = Math.min(4, w / 2, h);
+    return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`;
+  }
+  function niceMax(v) {
+    if (v <= 0) return 1;
+    const p = 10 ** Math.floor(Math.log10(v));
+    for (const m of [1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * p >= v) return m * p;
+    return 10 * p;
+  }
+
+  const tip = $("tooltip");
+  function showTip(event, title, rows) {
+    tip.replaceChildren(htmlEl("b", {}, title), ...rows.map(([color, label, value]) =>
+      htmlEl("div", { class: "row" }, htmlEl("span", {}, color ? htmlEl("i", { style: `background:${color}` }) : null, label), htmlEl("span", {}, value))));
+    tip.hidden = false;
+    const x = Math.min(event.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    const y = Math.max(8, event.clientY - tip.offsetHeight - 12);
+    tip.style.left = `${x}px`; tip.style.top = `${y}px`;
+  }
+  const hideTip = () => { tip.hidden = true; };
+
+  /** Grouped column chart. groups: [{label, values: {base, opt}, tip: () => [title, rows]}] */
+  function grouped(container, groups, { format, height = 240, maxValue, labelGroups = [], yTicks = 4, tick = format }) {
+    const width = container.clientWidth || 300;
+    const m = { top: 18, right: 4, bottom: 34, left: width < 220 ? 40 : 52 };
+    const iw = width - m.left - m.right, ih = height - m.top - m.bottom;
+    const max = niceMax(maxValue ?? Math.max(...groups.flatMap((g) => Object.values(g.values))));
+    const y = (v) => m.top + ih - (v / max) * ih;
+    const svg = svgEl("svg", { viewBox: `0 0 ${width} ${height}`, role: "img" });
+    for (let i = 0; i <= yTicks; i++) {
+      const v = (max / yTicks) * i, yy = y(v);
+      svg.append(svgEl("line", { x1: m.left, x2: width - m.right, y1: yy, y2: yy, stroke: i === 0 ? "var(--axis)" : "var(--grid)", "stroke-width": 1 }));
+      svg.append(svgEl("text", { x: m.left - 8, y: yy + 4, "text-anchor": "end", class: "num" }, tick(v)));
+    }
+    const band = iw / groups.length;
+    const barW = Math.min(24, (band * 0.6) / SERIES.length);
+    groups.forEach((g, gi) => {
+      const cx = m.left + band * gi + band / 2;
+      const start = cx - (barW * SERIES.length + 2 * (SERIES.length - 1)) / 2;
+      SERIES.forEach((s, si) => {
+        const v = g.values[s.key], x = start + si * (barW + 2), yy = y(v), h = Math.max(v > 0 ? 1 : 0, m.top + ih - yy);
+        svg.append(svgEl("path", { d: columnPath(x, m.top + ih - h, barW, h), fill: s.color, class: "bar" }));
+        if (labelGroups.includes(gi)) {
+          // Side by side bars: each label sits over its own bar, nudged outward so the pair never touches
+          const anchor = si === 0 ? "end" : "start", lx = si === 0 ? x + barW : x;
+          svg.append(svgEl("text", { x: lx, y: m.top + ih - h - 5, "text-anchor": anchor, class: "value" }, format(v)));
+        }
+      });
+      // Short names when the band is too narrow for the full one (phones)
+      svg.append(svgEl("text", { x: cx, y: height - 12, "text-anchor": "middle" }, band < 90 && g.short ? g.short : g.label));
+      const hit = svgEl("rect", { x: m.left + band * gi, y: m.top, width: band, height: ih, class: "hit" });
+      hit.addEventListener("mousemove", (e) => { const [t, rows] = g.tip(); showTip(e, t, rows); });
+      hit.addEventListener("mouseleave", hideTip);
+      svg.append(hit);
+    });
+    container.replaceChildren(svg);
+  }
+
+  function renderTiles() {
+    const saving = 1 - avg(RUNS.optimized.cost) / avg(RUNS.baseline.cost);
+    const tile = (label, value, detail, cls = "") => htmlEl("div", { class: "tile" },
+      htmlEl("div", { class: "label" }, label), htmlEl("div", { class: `value ${cls}` }, value), htmlEl("div", { class: "detail" }, detail));
+    $("tiles").replaceChildren(
+      tile("AI cost", `−${Math.round(saving * 100)}%`, `−62% and −68% across the two runs`, "good"),
+      tile("Cost per mapping", money(perMapping.opt), `was ${money(perMapping.base)}`),
+      tile("Quality", pct(RUNS.optimized.passed / RUNS.optimized.total), `was ${pct(RUNS.baseline.passed / RUNS.baseline.total)} (${RUNS.baseline.passed}/${RUNS.baseline.total} checks)`),
+      tile("Time per mapping", `${(msPerMapping.opt / 1000).toFixed(1)} s`, `was ${(msPerMapping.base / 1000).toFixed(1)} s: slower when it escalates`),
+    );
+  }
+
+  function renderLegends() {
+    document.querySelectorAll(".legend").forEach((node) => node.replaceChildren(...SERIES.map((s) =>
+      htmlEl("span", {}, htmlEl("i", { style: `background:${s.color}` }), s.label))));
+  }
+
+  function renderCost() {
+    grouped($("chart-cost"), LAYOUTS.map((l) => ({
+      label: l.name, short: l.name.split(" ")[0], values: { base: avg(l.base), opt: avg(l.opt) },
+      tip: () => [l.full, [["var(--base)", "Baseline (Sonnet)", money(avg(l.base))], ["var(--opt)", `Optimized (${l.route})`, money(avg(l.opt))],
+        [null, "Change", `${Math.round((avg(l.opt) / avg(l.base) - 1) * 100)}%`]]],
+    })), { format: money, tick: (v) => v === 0 ? "$0" : `$${v.toFixed(2)}`, yTicks: 3, maxValue: 0.03 });
+  }
+
+  function renderQuality() {
+    grouped($("chart-quality"), LAYOUTS.map((l) => {
+      const total = l.baseQ[1];
+      return {
+        label: l.name, short: l.name.split(" ")[0], values: { base: l.baseQ[0] / total, opt: l.optQ[0] / total },
+        tip: () => [l.full, [["var(--base)", "Baseline", `${l.baseQ[0]}/${total} checks`], ["var(--opt)", "Optimized", `${l.optQ[0]}/${total} checks`]]],
+      };
+    }), { format: (v) => `${Math.round(v * 100)}%`, maxValue: 1, yTicks: 4, labelGroups: [3] });
+  }
+
+  function calls() { return Math.max(1, Math.min(1000, Number($("calls").value) || 30)); }
+
+  function renderScale() {
+    const per = calls();
+    $("chart-scale").replaceChildren(...SCALES.map((stores) => {
+      const base = stores * per * perMapping.base, opt = stores * per * perMapping.opt;
+      const wrap = htmlEl("div", { class: "multiple" },
+        htmlEl("h3", {}, `${stores.toLocaleString("en-US")} stores`),
+        htmlEl("p", { class: "muted num", style: "font-size:12px;margin:0" }, `${money(base)} → ${money(opt)} a month`),
+        htmlEl("p", { class: "saving num" }, `saves ${money(base - opt)}/month`));
+      const chart = htmlEl("div");
+      wrap.append(chart);
+      queueMicrotask(() => grouped(chart, [{
+        label: "per month", values: { base, opt },
+        tip: () => [`${stores.toLocaleString("en-US")} stores · ${(stores * per).toLocaleString("en-US")} mappings/month`,
+          [["var(--base)", "Baseline", money(base)], ["var(--opt)", "Optimized", money(opt)], [null, "Saved", money(base - opt)]]],
+      }], { format: money, height: 180, yTicks: 2 }));
+      return wrap;
+    }));
+  }
+
+  function renderLong() {
+    const stores = Number($("stores").value), per = calls();
+    const monthly = { base: stores * per * perMapping.base, opt: stores * per * perMapping.opt };
+    $("long-note").textContent = `${(stores * per).toLocaleString("en-US")} mappings a month · cumulative spend · `
+      + `saves ${money((monthly.base - monthly.opt) * 36)} over 3 years`;
+    grouped($("chart-long"), MONTHS.map((months) => ({
+      label: `${months} months`, short: `${months} mo`, values: { base: monthly.base * months, opt: monthly.opt * months },
+      tip: () => [`After ${months} months · ${stores.toLocaleString("en-US")} stores`,
+        [["var(--base)", "Baseline", money(monthly.base * months)], ["var(--opt)", "Optimized", money(monthly.opt * months)],
+         [null, "Saved", money((monthly.base - monthly.opt) * months)]]],
+    })), { format: money, height: 260, labelGroups: [MONTHS.length - 1] });
+  }
+
+  function renderTables() {
+    const table = (head, rows) => htmlEl("table", {},
+      htmlEl("thead", {}, htmlEl("tr", {}, head.map((h, i) => htmlEl("th", { class: i ? "r" : "", scope: "col" }, h)))),
+      htmlEl("tbody", {}, rows.map((r) => htmlEl("tr", {}, r.map((c, i) => htmlEl("td", { class: i ? "r" : "" }, c))))));
+    const per = calls();
+    $("tables").replaceChildren(
+      htmlEl("h2", { style: "margin: 4px 0 8px" }, "Measured, per layout (average of 2 runs)"),
+      table(["Layout", "Baseline cost", "Optimized cost", "Optimized route", "Baseline checks", "Optimized checks"],
+        LAYOUTS.map((l) => [l.full, money(avg(l.base)), money(avg(l.opt)), l.route, `${l.baseQ[0]}/${l.baseQ[1]}`, `${l.optQ[0]}/${l.optQ[1]}`])),
+      htmlEl("h2", { style: "margin: 16px 0 8px" }, `Projected, at ${per} mappings per store per month`),
+      table(["Stores", "Baseline / month", "Optimized / month", "Saved / month", "Saved / 3 years"],
+        SCALES.map((s) => { const b = s * per * perMapping.base, o = s * per * perMapping.opt; return [s.toLocaleString("en-US"), money(b), money(o), money(b - o), money((b - o) * 36)]; })),
+    );
+  }
+
+  function renderAll() { renderTiles(); renderLegends(); renderCost(); renderQuality(); renderScale(); renderLong(); renderTables(); }
+  $("calls").addEventListener("input", () => { renderScale(); renderLong(); renderTables(); });
+  $("stores").addEventListener("change", renderLong);
+  let resize;
+  window.addEventListener("resize", () => { clearTimeout(resize); resize = setTimeout(renderAll, 150); });
+  renderAll();
+</script>
+</body>
+</html>

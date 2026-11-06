@@ -1,15 +1,30 @@
 """Asks Claude to propose a mapping. Every call is logged to llm_calls, the same table the order
-bot uses, so both services share one daily AI budget."""
+bot uses, so both services share one daily AI budget.
 
+Two pipelines, compared by the mapping eval (python -m evals.run_mapping --compare):
+- baseline: Sonnet reads up to 50 raw rows as JSON.
+- optimized: code first profiles the table (a few facts per column, a dozen sample rows as CSV, and
+  every unusual row, so system rows like "AJUSTE INVENTARIO" are never sampled away). Haiku maps it;
+  if the result fails the structure or confidence checks, Sonnet maps it instead. The fixed
+  instructions are cached, so back-to-back calls (an eval run, a burst of uploads) read them at a
+  tenth of the price.
+"""
+
+import csv
+import io
 import json
+import re
 import time
+from collections import Counter
 
 import anthropic
 from psycopg import Connection
 
-from app.mapping import Mapping
+from app.mapping import FALSE_WORDS, TRUE_WORDS, Mapping, needs_review, problems
 
 PRICES_PER_MTOK = {"claude-sonnet-5-5": (2.0, 10.0), "claude-haiku-5-5": (0.1, 0.5)}
+CACHE_WRITE, CACHE_READ = 1.25, 0.1  # times the input price (5-minute cache)
+SAMPLE_CSV_ROWS = 12
 TIMEZONE = "America/Santo_Domingo"
 
 SYSTEM_PROMPT = """You map a point-of-sale (POS) table to Shopify product fields for a small business.
@@ -70,9 +85,12 @@ class MappingFailed(Exception):
         self.call = call or {}
 
 
-def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
+def cost_usd(
+    model: str, input_tokens: int, output_tokens: int, cache_write: int = 0, cache_read: int = 0
+) -> float:
     input_price, output_price = PRICES_PER_MTOK.get(model, (0.0, 0.0))
-    return (input_tokens * input_price + output_tokens * output_price) / 1_000_000
+    paid_input = input_tokens + cache_write * CACHE_WRITE + cache_read * CACHE_READ
+    return (paid_input * input_price + output_tokens * output_price) / 1_000_000
 
 
 def spent_today(conn: Connection) -> float:
@@ -107,24 +125,145 @@ def log_call(conn: Connection, ref: str, call: dict) -> None:
     )
 
 
-def propose_mapping(client: anthropic.Anthropic, model: str, table: dict) -> tuple[Mapping, dict]:
-    """One Claude call with structured output: the SDK checks the reply against the Mapping model."""
+def _kind(value: str) -> str:
+    text = value.strip()
+    if text.lower() in TRUE_WORDS | FALSE_WORDS:
+        return "yes/no"
+    if re.fullmatch(r"https?://\S+", text):
+        return "url"
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}([ T].*)?|\d{1,2}/\d{1,2}/\d{2,4}", text):
+        return "date"
+    if re.fullmatch(r"-?\d+", text):
+        return "integer"
+    if re.fullmatch(r"[^\d\s-]{0,4}\s*-?[\d.,]+", text) and re.search(r"\d", text):
+        return "number/money"
+    return "text"
+
+
+def _csv(columns: list[str], rows: list[dict]) -> str:
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(columns)
+    for row in rows:
+        writer.writerow([(row.get(column) or "")[:60] for column in columns])
+    return out.getvalue().strip()
+
+
+def profile_table(table: dict) -> str:
+    """The table in a few hundred tokens instead of thousands: what each column holds, a sample, and
+    every row that looks out of place (the rows most likely to be excluded)."""
+    columns = [column["name"] for column in table["columns"]]
+    rows = table["rows"]
+    lines = [
+        f"Table {table['table']}: {len(rows)} rows, {len(columns)} columns.",
+        "",
+        "Columns (name | looks like | blank | distinct | examples):",
+    ]
+    numeric = {}
+    for column in columns:
+        values = [str(row.get(column)) for row in rows if row.get(column) not in (None, "")]
+        kinds = Counter(_kind(value) for value in values)
+        kind = kinds.most_common(1)[0][0] if kinds else "empty"
+        numeric[column] = kind in ("integer", "number/money")
+        examples = list(dict.fromkeys(value[:40] for value in values))[:5]
+        lines.append(
+            f"- {column} | {kind} | {len(rows) - len(values)}/{len(rows)} | {len(set(values))} | "
+            + ", ".join(json.dumps(example, ensure_ascii=False) for example in examples)
+        )
+
+    def unusual(row: dict) -> bool:
+        if row.get(columns[0]) in (None, ""):
+            return True
+        for column in columns:
+            value = row.get(column)
+            if not numeric[column] or value in (None, ""):
+                continue
+            if _kind(str(value)) == "text":
+                return True
+            if re.fullmatch(r"[^\d]*0+([.,]0+)?", str(value).strip()):
+                zeros = sum(
+                    1 for r in rows if re.fullmatch(r"[^\d]*0+([.,]0+)?", str(r.get(column) or "").strip())
+                )
+                if zeros * 4 < len(rows):  # zero where the column usually isn't
+                    return True
+        return False
+
+    sample = rows[:SAMPLE_CSV_ROWS]
+    odd = [row for row in rows[SAMPLE_CSV_ROWS:] if unusual(row)]
+    lines += ["", f"First {len(sample)} rows (CSV):", _csv(columns, sample)]
+    if odd:
+        lines += [
+            "",
+            "Other rows that look unusual (blank key, a zero where the column is usually non-zero,"
+            " or text in a numeric column):",
+            _csv(columns, odd),
+        ]
+    return "\n".join(lines)
+
+
+def propose_mapping(
+    client: anthropic.Anthropic, model: str, table: dict, *, compact: bool = False, cache: bool = False
+) -> tuple[Mapping, dict]:
+    """One Claude call with structured output: the SDK checks the reply against the Mapping model.
+    compact sends the profile instead of raw rows; cache marks the fixed instructions for caching."""
     started = time.monotonic()
+    content = profile_table(table) if compact else json.dumps(table, ensure_ascii=False)
+    system = (
+        [{"type": "text", "text": SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}]
+        if cache
+        else SYSTEM_PROMPT
+    )
     response = client.messages.parse(
         model=model,
         max_tokens=8000,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": f"<table>\n{json.dumps(table, ensure_ascii=False)}\n</table>"}],
+        system=system,
+        messages=[{"role": "user", "content": f"<table>\n{content}\n</table>"}],
         output_format=Mapping,
     )
     usage = response.usage
+    cache_write = usage.cache_creation_input_tokens or 0
+    cache_read = usage.cache_read_input_tokens or 0
     call = {
         "model": model,
-        "input_tokens": usage.input_tokens,
+        "input_tokens": usage.input_tokens + cache_write + cache_read,
         "output_tokens": usage.output_tokens,
-        "cost_usd": cost_usd(model, usage.input_tokens, usage.output_tokens),
+        "cache_write_tokens": cache_write,
+        "cache_read_tokens": cache_read,
+        "cost_usd": cost_usd(model, usage.input_tokens, usage.output_tokens, cache_write, cache_read),
         "latency_ms": round((time.monotonic() - started) * 1000),
     }
     if response.stop_reason != "end_turn" or response.parsed_output is None:
         raise MappingFailed(f"Claude stopped with '{response.stop_reason}'", call)
     return response.parsed_output, call
+
+
+def propose_routed(client: anthropic.Anthropic, cheap: str, strong: str, table: dict) -> tuple[Mapping, dict]:
+    """The optimized pipeline: Haiku on the profile first; Sonnet only if Haiku's answer fails the
+    structure or confidence checks (or Haiku fails outright). The call record adds up both."""
+    columns = [column["name"] for column in table["columns"]]
+    try:
+        mapping, first = propose_mapping(client, cheap, table, compact=True, cache=True)
+        unsure = [field for field in needs_review(mapping) if field.target != "ignore"]
+        if not problems(mapping, columns) and not unsure:
+            return mapping, {**first, "route": cheap}
+    except (MappingFailed, anthropic.APIError) as error:
+        first = getattr(error, "call", None) or {
+            "model": cheap,
+            "cost_usd": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "latency_ms": 0,
+        }
+    mapping, second = propose_mapping(client, strong, table, compact=True, cache=True)
+    combined = {
+        key: first.get(key, 0) + second.get(key, 0)
+        for key in (
+            "input_tokens",
+            "output_tokens",
+            "cache_write_tokens",
+            "cache_read_tokens",
+            "cost_usd",
+            "latency_ms",
+        )
+    }
+    return mapping, {**combined, "model": strong, "route": f"{cheap} -> {strong}"}

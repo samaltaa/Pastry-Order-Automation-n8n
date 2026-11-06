@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app import commands
 from app.config import Settings
 from app.demo import demo_router
-from app.llm import propose_mapping
+from app.llm import propose_mapping, propose_routed
 from app.service import Mapper, Post, Problem, Service
 from app.shopify import ShopifyClient
 from app.sources import MAX_SHEET_ROWS
@@ -62,6 +62,12 @@ def shopify_signed(body: bytes, signature: str, secret: str) -> bool:
     return hmac.compare_digest(expected, signature)
 
 
+def map_table(claude: anthropic.Anthropic, settings: Settings, table: dict):
+    if settings.mapping_pipeline == "baseline":
+        return propose_mapping(claude, settings.anthropic_model_strong, table)
+    return propose_routed(claude, settings.anthropic_model_fast, settings.anthropic_model_strong, table)
+
+
 def key_matches(given: str, expected: str | None) -> bool:
     return bool(expected) and hmac.compare_digest(given.encode(), expected.encode())
 
@@ -103,7 +109,7 @@ def create_app(
             settings,
             pool,
             shopify_client,
-            mapper or (lambda table: propose_mapping(claude, settings.anthropic_model_strong, table)),
+            mapper or (lambda table: map_table(claude, settings, table)),
             post_json if post is None else post,
         )
         if settings.shopify_webhook_url:
