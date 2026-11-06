@@ -72,7 +72,8 @@ def test_first_snapshot_asks_the_owner_to_approve_a_mapping(sheet_client, calls,
     [(url, message)] = sheet_client.outbox
     assert url == "https://api.telegram.org/botbot-token/sendMessage"
     assert message["chat_id"] == "42"
-    assert message["text"].startswith("The inventory sheet needs a mapping before it can sync.")
+    assert message["text"].startswith("The inventory sheet needs a mapping. Its sync is paused")
+    assert "- failed: Small effect on the store: nothing in Shopify to compare with yet" in message["text"]
     assert "Reply /approve 2 or /reject 2" in message["text"]
 
     # Another edit while the proposal waits: no second Claude call, no second message
@@ -103,7 +104,7 @@ def test_renamed_column_pauses_the_sync_until_a_new_mapping_is_approved(sheet_cl
     result = send(sheet_client, renamed)
     assert result["status"] == "needs_approval"
     assert len(calls) == 2
-    assert "columns changed, so its sync is paused" in sheet_client.outbox[-1][1]["text"]
+    assert "columns changed. Its sync is paused" in sheet_client.outbox[-1][1]["text"]
     assert store.by_sku("CAT-1")["price"] == "38.00"  # nothing synced
 
 

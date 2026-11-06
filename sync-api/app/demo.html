@@ -43,6 +43,7 @@
   .primary:hover { border-color: var(--accent); filter: brightness(1.08); }
   .quiet { border-color: transparent; background: transparent; color: var(--muted); }
   button:disabled { opacity: .6; cursor: progress; }
+  .cell button:disabled, .cell input:disabled { cursor: not-allowed; opacity: .45; }
 
   /* Header */
   .top { display: flex; gap: 12px 24px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap;
@@ -88,9 +89,19 @@
   .reorder-row .count { font-weight: 600; color: var(--warn); }
   .reorder-row .count.bad { color: var(--bad); }
 
+  .mapping-line { display: flex; gap: 6px 12px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--muted); margin: -8px 0 16px; }
+  .mapping-line a { font-size: 13px; }
+  .paused { margin-bottom: 16px; border-left: 3px solid var(--warn); }
+  .paused .panel-head h2 { color: var(--warn); }
+  .paused p { margin: 10px 16px; color: var(--muted); }
+  .checks { list-style: none; margin: 0; padding: 0 0 6px; }
+  .checks li { display: grid; grid-template-columns: 76px 190px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 6px 16px; }
+  .checks .detail { color: var(--muted); font-size: 13px; }
+  @media (max-width: 720px) { .checks li { grid-template-columns: 76px minmax(0, 1fr); } .checks .detail { grid-column: 2; } }
   .result { margin-bottom: 16px; }
   .result.good { border-left: 3px solid var(--good); }
   .result.bad { border-left: 3px solid var(--bad); }
+  .result.warn { border-left: 3px solid var(--warn); }
   .result .panel-head h2 { flex: 1; }
   .result ul { list-style: none; margin: 0; padding: 0; }
   .result li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 8px 16px; border-top: 1px solid var(--line); }
@@ -195,7 +206,23 @@
 
   <p class="hint" id="hint"><b>Try it:</b> change a price or a stock count in the table, then <b>Sync to Shopify</b>.</p>
 
+  <div class="mapping-line" id="mapping-line"></div>
+
+  <div class="panel paused" id="paused" hidden aria-live="polite">
+    <div class="panel-head"><h2>Sync paused: the sheet's columns changed</h2></div>
+    <p id="paused-text"></p>
+    <ul class="checks" id="paused-checks"></ul>
+  </div>
+
   <div id="result" aria-live="polite"></div>
+
+  <div class="panel paused" id="held" hidden aria-live="polite">
+    <div class="panel-head">
+      <h2 id="held-title">Held for review</h2>
+      <span class="small">These changes looked like typos, so the store kept its old value. The owner can apply one with /release.</span>
+    </div>
+    <ul class="checks" id="held-list"></ul>
+  </div>
 
   <div class="panel reorder" id="reorder" hidden>
     <div class="panel-head">
@@ -249,9 +276,11 @@
   <section>
     <h2>How it works</h2>
     <p>The <span class="source-name">register</span>'s columns, as matched to Shopify, and the sync history.</p>
-    <details>
-      <summary>Column mapping</summary>
-      <p class="small muted">Claude proposed this from the column names and sample rows. A person approved it. Every sync applies it with plain, tested code.</p>
+    <details id="mapping-details">
+      <summary>Column mapping and approval checks</summary>
+      <p class="small muted" id="mapping-note">Claude proposes the mapping from the column names and sample rows. Deterministic checks decide whether it can be
+        applied without a person; if any fails, the owner approves it. Every sync then applies it with plain, tested code.</p>
+      <ul class="checks" id="approval-checks"></ul>
       <div class="scroll"><table class="ref" id="mapping"></table></div>
     </details>
     <details>
@@ -319,8 +348,15 @@
   const needsReorder = (p) => p.status === "ACTIVE" && p.reorder_level != null && Number(current(p).quantity) <= p.reorder_level;
   const isLow = (p) => needsReorder(p) && !isOut(p);
 
+  const paused = () => Boolean(state.waiting);
+
+  const heldFor = (p) => state.held.filter((h) => h.sku === p.sku);
+  const shown = (field, value) => value == null ? "–" : field === "price" ? money(value) : value;
+
   function status(p) {
     if (p.excluded) return ["hidden", "Skipped"];
+    if (paused()) return ["hidden", "Paused"];
+    if (!pending.has(p.key) && heldFor(p).length) return ["warn", "Held"];
     if (pending.has(p.key)) return ["warn", "Unsaved"];
     if (p.status === "DRAFT") return ["hidden", "Hidden"];
     if (isOut(p)) return ["bad", "Out of stock"];
@@ -341,8 +377,10 @@
     $("subtitle").textContent = onSheet()
       ? "A Dominican bakery's stock, managed in a Google Sheet and kept in sync with its Shopify store."
       : "A Dominican bakery's register (POS) stock, kept in sync with its Shopify store.";
-    $("hint").replaceChildren(el("b", {}, "Try it: "), "change a price or a stock count in the table, then ",
-      el("b", {}, "Sync to Shopify"), onSheet() ? ". The change is also written back into the Google Sheet." : ".");
+    $("hint").replaceChildren(...(paused()
+      ? [el("b", {}, "Editing is paused "), "until the new mapping is approved or the column gets its old name back. The store still has the last synced values."]
+      : [el("b", {}, "Try it: "), "change a price or a stock count in the table, then ", el("b", {}, "Sync to Shopify"),
+         onSheet() ? ". The change is also written back into the Google Sheet." : "."]));
     document.querySelectorAll(".source-name").forEach((node) => { node.textContent = sourceName(); });
   }
 
@@ -356,7 +394,7 @@
       { class: `kpi ${cls}`, type: onclick ? "button" : undefined, onclick },
       el("span", { class: "label" }, label), el("span", { class: "value" }, value), sub ? el("span", { class: "sub" }, sub) : null);
     $("kpis").replaceChildren(
-      kpi("", "Products", list.length, `${list.filter((p) => p.status === "ACTIVE").length} for sale`),
+      kpi("", "Products", list.length, paused() ? "for sale: paused" : `${list.filter((p) => p.status === "ACTIVE").length} for sale`),
       kpi("", "Units on hand", units.toLocaleString("en-US")),
       kpi(low ? "warn" : "", "Low stock", low, "at or below reorder level", low ? () => setFilter("low") : null),
       kpi(out ? "bad" : "", "Out of stock", out, "for sale, none left", out ? () => setFilter("out") : null),
@@ -401,9 +439,9 @@
 
   function row(p) {
     const edit = pending.get(p.key);
-    const price = el("input", { type: "number", step: "0.01", min: "0.25", max: "500", inputMode: "decimal",
+    const price = el("input", { type: "number", step: "0.01", min: "0.25", max: "500", inputMode: "decimal", disabled: paused(),
                                 value: edit ? edit.price : p.price ?? "", ariaLabel: `Price of ${p.title}` });
-    const stock = el("input", { type: "number", step: "1", min: "0", max: "999", inputMode: "numeric",
+    const stock = el("input", { type: "number", step: "1", min: "0", max: "999", inputMode: "numeric", disabled: paused(),
                                 value: edit ? edit.quantity : p.quantity ?? "", ariaLabel: `Stock on hand of ${p.title}` });
     const remember = () => {
       pending.set(p.key, { key: p.key, price: Number(price.value), quantity: Number(stock.value) });
@@ -424,8 +462,8 @@
       el("td", { class: "c-status" }, pill(p)),
       el("td", { class: "c-price r" }, p.excluded ? "" : el("span", { class: "cell" }, el("span", { class: "unit" }, "$"), price)),
       el("td", { class: "c-stock r" }, p.excluded ? "" : el("span", { class: "cell stock" },
-        el("button", { type: "button", onclick: step(-1), ariaLabel: `One less ${p.title}` }, "−"), stock,
-        el("button", { type: "button", onclick: step(1), ariaLabel: `One more ${p.title}` }, "+"))),
+        el("button", { type: "button", onclick: step(-1), disabled: paused(), ariaLabel: `One less ${p.title}` }, "−"), stock,
+        el("button", { type: "button", onclick: step(1), disabled: paused(), ariaLabel: `One more ${p.title}` }, "+"))),
       el("td", { class: "c-reorder r num muted" }, p.reorder_level ?? "–"),
       el("td", { class: "c-store r" }, link),
     );
@@ -440,6 +478,42 @@
       (!query || `${p.title} ${p.sku} ${p.category}`.toLowerCase().includes(query)));
     $("rows").replaceChildren(...(shown.length ? shown.map(row)
       : [el("tr", {}, el("td", { colSpan: 7, class: "empty" }, "No products match these filters."))]));
+  }
+
+  const checkList = (checks) => checks.map((c) => el("li", {},
+    el("span", { class: `pill ${c.passed ? "good" : "bad"}` }, c.passed ? "Passed" : "Failed"),
+    el("b", {}, c.name), el("span", { class: "detail" }, c.detail)));
+
+  function renderHeld() {
+    $("held").hidden = state.held.length === 0;
+    $("held-title").textContent = `Held for review (${state.held.length})`;
+    $("held-list").replaceChildren(...state.held.map((h) => {
+      const product = state.products.find((p) => p.sku === h.sku);
+      return el("li", {},
+        el("span", { class: "pill warn" }, h.field === "price" ? "Price" : "Stock"),
+        el("b", {}, product?.title ?? h.sku),
+        el("span", { class: "detail num" }, `${shown(h.field, h.old_value)} → ${shown(h.field, h.new_value)} · ${h.reason} · store keeps ${shown(h.field, h.old_value)}`));
+    }));
+  }
+
+  function renderApproval() {
+    const { approval, waiting, mapping_id: id } = state;
+    const passedCount = approval.checks.filter((c) => c.passed).length;
+    $("mapping-line").replaceChildren(
+      el("span", {}, `Column mapping #${id}`),
+      el("span", { class: `pill ${approval.by === "auto" ? "good" : "hidden"}` },
+        approval.by === "auto" ? "Approved automatically" : "Approved by the owner"),
+      approval.checks.length ? el("span", { class: "num" }, `${passedCount} of ${approval.checks.length} checks passed`) : null,
+      el("a", { href: "#mapping-details", onclick: () => { $("mapping-details").open = true; } }, "See checks"),
+    );
+    $("approval-checks").replaceChildren(...checkList(approval.checks));
+    $("paused").hidden = !waiting;
+    if (waiting) {
+      const failed = waiting.checks.filter((c) => !c.passed).length;
+      $("paused-text").textContent = `Claude proposed mapping #${waiting.id} for the new columns, but ${plural(failed, "check")} failed, `
+        + `so it waits for the owner's approval. Until then the store keeps mapping #${id}; rename the column back to resume.`;
+      $("paused-checks").replaceChildren(...checkList(waiting.checks));
+    }
   }
 
   function renderDetails() {
@@ -468,7 +542,7 @@
   }
 
   function renderAll() {
-    renderHeader(); renderKpis(); renderReorder(); renderFilters(); renderRows(); renderDetails(); updateBar();
+    renderHeader(); renderKpis(); renderApproval(); renderHeld(); renderReorder(); renderFilters(); renderRows(); renderDetails(); updateBar();
   }
 
   async function load() {
@@ -483,6 +557,12 @@
       ? el("a", { href: storeUrl(product), target: "_blank", rel: "noopener", class: "small" }, "View in store") : el("span");
     let what;
     if (change.action === "failed") what = el("span", { style: "color: var(--bad)" }, `not synced: ${change.detail}`);
+    else if (change.action === "held") {
+      const h = state.held.find((x) => x.sku === change.sku && x.field === change.field);
+      what = el("span", { style: "color: var(--warn)" }, h
+        ? `held for review: ${h.field === "price" ? "price" : "stock"} ${shown(h.field, h.old_value)} → ${shown(h.field, h.new_value)} (${h.reason})`
+        : `held for review: ${change.detail}`);
+    }
     else if (change.action === "remove") what = `removed from the ${sourceName()}, now hidden in the store`;
     else if (change.conflict) what = `the store had sold some since the last sync; the ${sourceName()}'s count was applied`;
     else {
@@ -517,7 +597,11 @@
       await load();
       const changed = report.changes;
       const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      showResult("good", changed.length ? `Synced ${plural(changed.length, "product")} to Shopify · ${time}` : `Synced · nothing had changed · ${time}`,
+      const synced = changed.filter((c) => c.action !== "held").length;
+      const heldCount = changed.length - synced;
+      showResult(heldCount ? "warn" : "good",
+        [synced ? `Synced ${plural(synced, "product")} to Shopify` : heldCount ? "Nothing synced" : "Synced · nothing had changed",
+         heldCount ? `${heldCount} held for review` : null, time].filter(Boolean).join(" · "),
         changed.length ? el("ul", {}, changed.map((c) => describe(c, sent))) : null, sheetNote(report.sheet));
     } catch (error) {
       showResult("bad", "Not synced", el("div", { class: "note bad" }, error.message));

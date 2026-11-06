@@ -166,7 +166,7 @@ Send these to the bot from your own Telegram account (only `OWNER_TELEGRAM_CHAT_
 2. `/approve <id>`
 3. `/sync`: the first run creates every product in Shopify (about 30 seconds).
 
-After that, the n8n schedule syncs every 15 minutes and messages you only when something fails or a stock conflict is found. `/runs` lists recent runs.
+After that, the n8n schedule syncs every 15 minutes and messages you only when something fails or a stock conflict is found. `/runs` lists recent runs. A price or stock change that looks like a typo is held instead of synced; `/held` lists them and `/release <sku>` applies one.
 
 *Check:* `https://sync.<your-domain>` opens the demo page. Change a price there, click **Sync to Shopify**, and the storefront shows the new price.
 

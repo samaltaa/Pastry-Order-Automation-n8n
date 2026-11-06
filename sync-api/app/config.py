@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Where Shopify sends stock changes (online sales, cancellations, admin edits), e.g.
     # https://sync.<domain>/webhooks/shopify. Registered with Shopify at startup.
     shopify_webhook_url: str | None = None
+    # Approve a sheet's new mapping without the owner when every deterministic check passes (app/gate.py).
+    # A mapping that fails any check still waits for /approve.
+    auto_approve_mappings: bool = True
     # Owner alerts when a sheet's columns change and a new mapping needs approval
     telegram_bot_token: str | None = None
     owner_telegram_chat_id: str | None = None

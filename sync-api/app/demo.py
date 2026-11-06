@@ -23,7 +23,7 @@ from psycopg import sql
 from pydantic import BaseModel, Field
 
 from app.config import Settings
-from app.mapping import apply, is_excluded
+from app.mapping import apply, is_excluded, problems
 from app.service import Problem, Service
 from app.sources import SAMPLE_ROWS, full_name, qualify, read_rows
 from app.sync import NoApprovedMapping, approved_mapping, handle_for
@@ -132,6 +132,16 @@ def demo_router(settings: Settings) -> APIRouter:
                 for row in conn.execute("SELECT sku, synced_at, last_quantity, published FROM sync.items")
             }
             rows = read_rows(conn, source)
+            approval = conn.execute(
+                "SELECT approved_by, checks FROM sync.mappings WHERE id = %s", (mapping_id,)
+            ).fetchone()
+            waiting = conn.execute(
+                """
+                SELECT id, checks FROM sync.mappings
+                WHERE source_table = %s AND status = 'proposed' AND id > %s ORDER BY id DESC LIMIT 1
+                """,
+                (source, mapping_id),
+            ).fetchone()
 
         products = []
         for row in rows:
@@ -158,9 +168,15 @@ def demo_router(settings: Settings) -> APIRouter:
             "table": source,
             "source": {"kind": "sheet" if on_sheet else "pos", "url": sheet_url},
             "mapping_id": mapping_id,
+            "approval": {"by": approval[0], "checks": approval[1] or []},
+            # Paused only while the approved mapping can't read the current columns
+            "waiting": {"id": waiting[0], "checks": waiting[1] or []}
+            if waiting and rows and problems(mapping, list(rows[0]))
+            else None,
             "mapping": [field.model_dump() for field in mapping.fields],
             "products": products,
             "low_stock": service(request).low_stock(),
+            "held": [change for change in service(request).held_changes() if not change["released"]],
             "runs": service(request).runs(5),
             "storefront": {
                 "url": settings.storefront_url or f"https://{settings.shopify_store}",

@@ -11,6 +11,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 from psycopg_pool import ConnectionPool
 
+from app import gate
 from app import mapping as mappings
 from app.config import Settings
 from app.llm import TIMEZONE, MappingFailed, log_call, spent_today
@@ -119,14 +120,37 @@ class Service:
         return mapping, call["model"]
 
     def propose(self, table_name: str) -> dict:
+        """Claude's proposal, stored with the deterministic checks it was judged on."""
         table = self.table(table_name)
         mapping, model = self.ask_claude(table)
+        checks = self.checks(table["table"], mapping)
         with self.pool.connection() as conn:
             mapping_id = conn.execute(
-                "INSERT INTO sync.mappings (source_table, mapping, model) VALUES (%s, %s, %s) RETURNING id",
-                (table["table"], Jsonb(mapping.model_dump()), model),
+                "INSERT INTO sync.mappings (source_table, mapping, model, checks)"
+                " VALUES (%s, %s, %s, %s) RETURNING id",
+                (table["table"], Jsonb(mapping.model_dump()), model, Jsonb(checks)),
             ).fetchone()[0]
-        return self.report(mapping_id, "proposed", mapping, table)
+        return {**self.report(mapping_id, "proposed", mapping, table), "checks": checks}
+
+    def checks(self, source: str, mapping: mappings.Mapping) -> list[dict]:
+        """The approval checks (app/gate.py), run on every row of the source and on what Shopify has."""
+        with self.pool.connection() as conn:
+            rows = read_rows(conn, source)
+            columns = list(rows[0]) if rows else []
+            try:
+                _, previous = approved_mapping(conn, source)
+            except NoApprovedMapping:
+                previous = None
+            known = dict(conn.execute("SELECT sku, data_hash FROM sync.items").fetchall())
+        return gate.check(mapping, columns, rows, previous, known)
+
+    def approve(self, mapping_id: int, approved_by: str) -> None:
+        with self.pool.connection() as conn:
+            conn.execute(
+                "UPDATE sync.mappings SET status = 'approved', approved_by = %s, reviewed_at = NOW()"
+                " WHERE id = %s",
+                (approved_by, mapping_id),
+            )
 
     def preview_only(self, table: dict) -> dict:
         """A mapping for data that isn't stored (an uploaded CSV). Nothing is saved or synced."""
@@ -158,13 +182,15 @@ class Service:
             if found:
                 raise Problem(422, found)
 
-        new_status = "approved" if decision == "approve" else "rejected"
+        if decision == "approve":
+            self.approve(mapping_id, "owner")
+            return {"id": mapping_id, "status": "approved"}
         with self.pool.connection() as conn:
             conn.execute(
-                "UPDATE sync.mappings SET status = %s, reviewed_at = NOW() WHERE id = %s",
-                (new_status, mapping_id),
+                "UPDATE sync.mappings SET status = 'rejected', reviewed_at = NOW() WHERE id = %s",
+                (mapping_id,),
             )
-        return {"id": mapping_id, "status": new_status}
+        return {"id": mapping_id, "status": "rejected"}
 
     def sync(self, table: str | None, dry_run: bool, trigger: str, wait: bool = False) -> dict:
         """One sync run of a table, or of the active source. With wait, a run already in progress
@@ -191,8 +217,56 @@ class Service:
                     continue
             if not dry_run:
                 self.alert_low_stock()
+                self.alert_held(report["changes"])
             return report
         raise Problem(409, str(busy))
+
+    def held_changes(self) -> list[dict]:
+        """Changes held because they looked like typos, newest first, with the product's title."""
+        with self.pool.connection() as conn:
+            return (
+                conn.cursor(row_factory=dict_row)
+                .execute(
+                    """
+                    SELECT sku, field, old_value, new_value, reason, released,
+                           to_char(held_at AT TIME ZONE %s, 'Mon DD HH24:MI') AS held_local
+                    FROM sync.held_changes ORDER BY held_at DESC
+                    """,
+                    (TIMEZONE,),
+                )
+                .fetchall()
+            )
+
+    def release(self, sku: str) -> dict:
+        """The owner says a held change was intended: it's applied by a sync straight away."""
+        with self.pool.connection() as conn:
+            fields = [
+                row[0]
+                for row in conn.execute(
+                    "UPDATE sync.held_changes SET released = TRUE WHERE upper(sku) = upper(%s)"
+                    " RETURNING field",
+                    (sku.strip(),),
+                )
+            ]
+        if not fields:
+            raise Problem(404, f"Nothing is held for {sku}")
+        return {
+            "sku": sku.strip().upper(),
+            "released": fields,
+            "sync": self.sync(None, False, "manual", wait=True),
+        }
+
+    def alert_held(self, changes: list[dict]) -> None:
+        new = [change for change in changes if change["action"] == "held" and change.get("new")]
+        if new:
+            lines = [f"- {change['title']} ({change['sku']}): {change['detail']}" for change in new]
+            skus = sorted({change["sku"] for change in new})
+            self.notify_owner(
+                "Held for review (looks like a typo; the store kept the old value):\n"
+                + "\n".join(lines)
+                + "\nIf it was intended: "
+                + ", ".join(f"/release {sku}" for sku in skus)
+            )
 
     def low_stock(self) -> list[dict]:
         """Products for sale whose stock is at or below their reorder level, the emptiest first."""
@@ -295,17 +369,30 @@ class Service:
             return {"status": "needs_approval", "mapping_id": pending, "new_proposal": None}
         proposal = self.propose(source)
         proposal["first"] = approved is None
+        if self.settings.auto_approve_mappings and gate.passed(proposal["checks"]):
+            self.approve(proposal["id"], "auto")
+            report = self.sync(source, dry_run=False, trigger="sheet", wait=True)
+            return {
+                "status": "auto_approved",
+                "mapping_id": proposal["id"],
+                "sync": report,
+                "new_proposal": proposal,
+            }
         return {"status": "needs_approval", "mapping_id": proposal["id"], "new_proposal": proposal}
 
     def pending_mapping(self, source: str, columns: list[str]) -> int | None:
-        """A proposal still waiting for approval that fits these columns, so Claude isn't asked again."""
+        """A proposal still waiting for approval that fits these columns, so Claude isn't asked again.
+        Only proposals newer than the approved mapping count: older ones were overtaken."""
         with self.pool.connection() as conn:
             row = conn.execute(
                 """
                 SELECT id, mapping FROM sync.mappings
-                WHERE source_table = %s AND status = 'proposed' ORDER BY id DESC LIMIT 1
+                WHERE source_table = %(source)s AND status = 'proposed'
+                  AND id > COALESCE((SELECT MAX(id) FROM sync.mappings
+                                     WHERE source_table = %(source)s AND status = 'approved'), 0)
+                ORDER BY id DESC LIMIT 1
                 """,
-                (source,),
+                {"source": source},
             ).fetchone()
         if row and not mappings.problems(mappings.Mapping.model_validate(row[1]), columns):
             return row[0]

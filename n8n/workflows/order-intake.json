@@ -179,7 +179,7 @@
                   {
                     "id": "cmd-owner-text",
                     "leftValue": "={{ $('Telegram webhook').first().json.body.message.text.trim() }}",
-                    "rightValue": "^/(sync|mapping|approve|reject|runs)\\b",
+                    "rightValue": "^/(sync|mapping|approve|reject|runs|held|release)\\b",
                     "operator": {
                       "type": "string",
                       "operation": "regex"

@@ -29,6 +29,7 @@ def test_first_run_creates_products_with_stock_and_second_run_does_nothing(db, c
         "failed": 1,
         "conflicts": 0,
         "removed": 0,
+        "held": 0,
     }
     assert {"sku": "A-3", "action": "failed", "detail": "Missing price"} in first["changes"]
     tres_leches = store.by_sku("A-1")
@@ -48,7 +49,7 @@ def test_first_run_creates_products_with_stock_and_second_run_does_nothing(db, c
 
 def test_price_change_updates_the_product_and_stock_change_only_sets_stock(db, client, store):
     run(client)
-    db.execute("UPDATE pos.sync_test SET precio = '$5.00' WHERE codigo = 'A-2'")
+    db.execute("UPDATE pos.sync_test SET precio = '$17.50' WHERE codigo = 'A-2'")
     db.execute("UPDATE pos.sync_test SET existencia = 12 WHERE codigo = 'a-1 '")
     store.writes.clear()
 
@@ -56,7 +57,7 @@ def test_price_change_updates_the_product_and_stock_change_only_sets_stock(db, c
     assert report["counts"]["updated"] == 1
     assert report["counts"]["stock_updated"] == 1
     assert store.writes == ["productSet A-2", f"stock {store.by_sku('A-1')['item']}=12"]
-    assert store.by_sku("A-2")["price"] == "5.00"
+    assert store.by_sku("A-2")["price"] == "17.50"
 
 
 def test_a_sale_in_shopify_is_reported_as_a_conflict_and_the_pos_wins(db, client, store):

@@ -214,12 +214,18 @@ def create_app(
             """Make sends the whole sheet each time it changes. Unchanged rows cost nothing to sync."""
             result = service(request).ingest_sheet(name, body.values)
             if proposal := result.pop("new_proposal", None):
-                why = (
-                    f"The {name} sheet needs a mapping before it can sync."
+                changed = (
+                    f"The {name} sheet needs a mapping."
                     if proposal["first"]
-                    else f"The {name} sheet's columns changed, so its sync is paused until you approve "
-                    "a new mapping."
+                    else f"The {name} sheet's columns changed."
                 )
+                if result["status"] == "auto_approved":
+                    proposal["status"] = "approved"
+                    why = (
+                        f"{changed} Every check passed, so mapping {proposal['id']} was approved and synced."
+                    )
+                else:
+                    why = f"{changed} Its sync is paused until you approve a mapping."
                 service(request).notify_owner(f"{why}\n\n{commands.proposal_reply(proposal)}")
             return result
 

@@ -4,11 +4,13 @@
 /mapping         ask Claude for a new mapping of the active source (SYNC_SOURCE)
 /approve 3       approve mapping 3 and sync with it (/reject 3 rejects it)
 /runs            the last five sync runs
+/held            changes held because they looked like typos
+/release REP-010 apply a held change for that product
 """
 
 from app.service import Problem, Service
 
-HELP = "Commands: /sync, /mapping, /approve <id>, /reject <id>, /runs"
+HELP = "Commands: /sync, /mapping, /approve <id>, /reject <id>, /runs, /held, /release <sku>"
 
 
 def handle(service: Service, text: str) -> str:
@@ -33,6 +35,21 @@ def handle(service: Service, text: str) -> str:
             return reply
         if command == "/runs":
             return runs_reply(service.runs(5))
+        if command == "/held":
+            held = [change for change in service.held_changes() if not change["released"]]
+            if not held:
+                return "Nothing is held."
+            return "Held for review:\n" + "\n".join(
+                f"- {c['sku']} {c['field']}: {c['old_value']} -> {c['new_value']} ({c['reason']})"
+                for c in held
+            )
+        if command == "/release":
+            if not argument:
+                return "Which product? For example: /release REP-010"
+            result = service.release(argument)
+            return f"Released {result['sku']} ({', '.join(result['released'])}).\n" + sync_reply(
+                result["sync"]
+            )
         return HELP
     except Problem as problem:
         detail = problem.detail if isinstance(problem.detail, str) else "\n".join(problem.detail)
@@ -47,6 +64,8 @@ def sync_reply(report: dict) -> str:
         + (f"{counts['removed']} set to draft, " if counts["removed"] else "")
         + f"{counts['unchanged']} unchanged."
     ]
+    if counts.get("held"):
+        lines.append(f"{counts['held']} held for review (/held).")
     if counts["failed"] or counts["conflicts"]:
         lines.append(f"{counts['failed']} failed, {counts['conflicts']} stock conflicts:")
     for change in report["changes"][:10]:
@@ -63,9 +82,13 @@ def proposal_reply(report: dict) -> str:
     excluded = [row["key"] for row in report["mapping"]["excluded_rows"]]
     if excluded:
         lines.append(f"Skipped rows: {', '.join(excluded)}")
+    checks = report.get("checks") or []
+    if checks:
+        lines.append(f"Checks: {sum(c['passed'] for c in checks)} of {len(checks)} passed")
+        lines.extend(f"- failed: {c['name']}: {c['detail']}" for c in checks if not c["passed"])
     if report["problems"]:
         lines.append("Can't be approved: " + "; ".join(report["problems"]))
-    else:
+    elif report.get("status") != "approved":
         lines.append(f"Reply /approve {report['id']} or /reject {report['id']}")
     return "\n".join(lines)
 

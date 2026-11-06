@@ -21,12 +21,13 @@ import re
 from psycopg import Connection
 from psycopg.rows import dict_row
 
+from app import guard
 from app.mapping import LOCAL_TARGETS, REQUIRED_TARGETS, Mapping, apply, is_excluded, problems
 from app.shopify import ShopifyClient, ShopifyError
 from app.sources import column_names, full_name, read_rows
 
 LOCK_ID = 7_270_002
-COUNTS = "created updated stock_updated published unchanged excluded failed conflicts removed".split()
+COUNTS = "created updated stock_updated published unchanged excluded failed conflicts removed held".split()
 SHOPIFY_IDS = ("shopify_product_id", "shopify_variant_id", "shopify_inventory_item_id")
 
 PRODUCT_SET = """
@@ -240,20 +241,28 @@ def approved_mapping(conn: Connection, source_table: str) -> tuple[int, Mapping]
 
 
 def save_item(
-    conn: Connection, sku: str, source_key: str, data_hash: str, ids: dict, quantity, image: str | None
+    conn: Connection,
+    sku: str,
+    source_key: str,
+    data_hash: str,
+    ids: dict,
+    quantity,
+    image: str | None,
+    price: str | None = None,
 ) -> None:
     conn.execute(
         """
         INSERT INTO sync.items (sku, source_key, data_hash, shopify_product_id, shopify_variant_id,
-                                shopify_inventory_item_id, last_quantity, last_image, published, last_error,
-                                synced_at)
+                                shopify_inventory_item_id, last_quantity, last_image, last_price, published,
+                                last_error, synced_at)
         VALUES (%(sku)s, %(source_key)s, %(data_hash)s, %(shopify_product_id)s, %(shopify_variant_id)s,
-                %(shopify_inventory_item_id)s, %(quantity)s, %(image)s, TRUE, NULL, NOW())
+                %(shopify_inventory_item_id)s, %(quantity)s, %(image)s, %(price)s, TRUE, NULL, NOW())
         ON CONFLICT (sku) DO UPDATE SET
           source_key = EXCLUDED.source_key, data_hash = EXCLUDED.data_hash,
           shopify_product_id = EXCLUDED.shopify_product_id, shopify_variant_id = EXCLUDED.shopify_variant_id,
           shopify_inventory_item_id = EXCLUDED.shopify_inventory_item_id,
-          last_quantity = EXCLUDED.last_quantity, last_image = EXCLUDED.last_image, published = TRUE,
+          last_quantity = EXCLUDED.last_quantity, last_image = EXCLUDED.last_image,
+          last_price = COALESCE(EXCLUDED.last_price, sync.items.last_price), published = TRUE,
           last_error = NULL, synced_at = NOW()
         """,
         {
@@ -262,6 +271,7 @@ def save_item(
             "data_hash": data_hash,
             "quantity": quantity,
             "image": image,
+            "price": price,
             **ids,
         },
     )
@@ -317,6 +327,11 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
     counts = dict.fromkeys(COUNTS, 0)
     changes: list[dict] = []
     known = {row["sku"]: row for row in conn.cursor(row_factory=dict_row).execute("SELECT * FROM sync.items")}
+    released: dict[str, dict[str, str]] = {}
+    for sku, field, value in conn.execute(
+        "SELECT sku, field, new_value FROM sync.held_changes WHERE released"
+    ):
+        released.setdefault(sku, {})[field] = value
     seen: set[str] = set()
 
     for row in read_rows(conn, table):
@@ -338,6 +353,37 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
         data_changed = item is None or item["data_hash"] != data_hash
         stock_changed = item is not None and quantity is not None and quantity != item["last_quantity"]
         needs_publishing = item is None or not item["published"]
+
+        # A held price keeps the whole product as it was; a held stock count keeps the old stock
+        holds = [
+            hold
+            for hold in guard.check(product, item, released.get(sku, {}))
+            if (hold["field"] == "price" and data_changed) or (hold["field"] == "quantity" and stock_changed)
+        ]
+        held_fields = {hold["field"] for hold in holds}
+        if not dry_run:
+            new_holds = record_holds(conn, sku, holds)
+        for hold in holds:
+            counts["held"] += 1
+            changes.append(
+                {
+                    "sku": sku,
+                    "title": product["title"],
+                    "action": "held",
+                    "field": hold["field"],
+                    "detail": f"{hold['field']} {hold['old']} -> {hold['new']}: {hold['reason']}",
+                    "new": not dry_run and hold["field"] in new_holds,
+                }
+            )
+        if "price" in held_fields:
+            data_changed = False
+            data_hash = item["data_hash"] if item else data_hash
+        if "quantity" in held_fields:
+            stock_changed = False
+            quantity = item["last_quantity"] if item else quantity
+        if item is None and held_fields:
+            continue  # a new product with a held value isn't created until it's fixed or released
+
         if not data_changed and not stock_changed and not needs_publishing:
             counts["unchanged"] += 1
             if item["last_error"] and not dry_run:  # Shopify already matches: an old failure is moot
@@ -385,7 +431,8 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
             if needs_publishing:
                 sync.publish(ids["shopify_product_id"])
                 counts["published"] += 1
-            save_item(conn, sku, source_key, data_hash, ids, quantity, product.get("image"))
+            price = item["last_price"] if item and "price" in held_fields else product["price"]
+            save_item(conn, sku, source_key, data_hash, ids, quantity, product.get("image"), price)
             conn.commit()
             changes.append(change)
         except ShopifyError as error:
@@ -397,6 +444,34 @@ def sync_rows(conn: Connection, sync: Sync, mapping: Mapping, table: str, dry_ru
 
     remove_missing(conn, sync, known, seen, dry_run, counts, changes)
     return {"counts": counts, "changes": changes}
+
+
+def record_holds(conn: Connection, sku: str, holds: list[dict]) -> set[str]:
+    """Keeps sync.held_changes in step with this product: new or changed holds are stored, holds whose
+    value was fixed (or released and now applied) are cleared. Returns the fields held for the first time."""
+    current = {
+        row[0]: row[1]
+        for row in conn.execute("SELECT field, new_value FROM sync.held_changes WHERE sku = %s", (sku,))
+    }
+    held = {hold["field"] for hold in holds}
+    for field in set(current) - held:
+        conn.execute("DELETE FROM sync.held_changes WHERE sku = %s AND field = %s", (sku, field))
+    fresh = set()
+    for hold in holds:
+        if current.get(hold["field"]) == hold["new"]:
+            continue
+        fresh.add(hold["field"])
+        conn.execute(
+            """
+            INSERT INTO sync.held_changes (sku, field, old_value, new_value, reason)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (sku, field) DO UPDATE SET old_value = EXCLUDED.old_value,
+              new_value = EXCLUDED.new_value, reason = EXCLUDED.reason, released = FALSE, held_at = NOW()
+            """,
+            (sku, hold["field"], hold["old"], hold["new"], hold["reason"]),
+        )
+    conn.commit()
+    return fresh
 
 
 def remove_missing(

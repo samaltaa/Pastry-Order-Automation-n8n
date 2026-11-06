@@ -190,8 +190,8 @@ class Outbox(list):
 def db(database_url):
     with psycopg.connect(database_url, autocommit=True) as conn:
         conn.execute(
-            "TRUNCATE sync.items, sync.runs, sync.mappings, sync.low_stock, sync.webhook_deliveries"
-            " RESTART IDENTITY CASCADE"
+            "TRUNCATE sync.items, sync.runs, sync.mappings, sync.low_stock, sync.webhook_deliveries,"
+            " sync.held_changes RESTART IDENTITY CASCADE"
         )
         conn.execute("DROP TABLE IF EXISTS pos.sync_test")
         conn.execute(
